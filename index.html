@@ -355,6 +355,7 @@ Mark Villanueva</textarea>
         // 3. Document Synchronization Listeners
         function setupDatabaseListeners() {
             setSyncStatus('synced');
+            let isInitialCoverLoad = true; // Ensures data is pulled on first load
 
             // Listen to Cover Page and Order
             const coverRef = doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_COVER, 'main');
@@ -362,11 +363,13 @@ Mark Villanueva</textarea>
                 if (snapshot.exists()) {
                     const data = snapshot.data();
                     
-                    if (data.lastEditedBy !== myUsername) {
-                        document.getElementById('place').value = data.place || '';
-                        document.getElementById('instructor').value = data.instructor || '';
-                        document.getElementById('date').value = data.date || '';
-                        document.getElementById('members').value = data.members || '';
+                    // We load data to the DOM if it's the very first load OR if someone else edited it
+                    if (isInitialCoverLoad || data.lastEditedBy !== myUsername) {
+                        document.getElementById('place').value = data.place !== undefined ? data.place : '';
+                        document.getElementById('instructor').value = data.instructor !== undefined ? data.instructor : '';
+                        document.getElementById('date').value = data.date !== undefined ? data.date : '';
+                        document.getElementById('members').value = data.members !== undefined ? data.members : '';
+                        isInitialCoverLoad = false; // Turn off initial load flag after fetching
                     }
 
                     if (data.pageOrder) {
@@ -374,7 +377,7 @@ Mark Villanueva</textarea>
                         sortDOMPages();
                     }
                 } else {
-                    // Initialize first time
+                    // Initialize first time (Only triggers for completely empty rooms)
                     setDoc(coverRef, {
                         place: "Brgy. San Andres, Cainta, Rizal",
                         instructor: "Mr./Ms. Juan Dela Cruz",
