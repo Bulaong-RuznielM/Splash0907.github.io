@@ -1,170 +1,629 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Genshin Artifact System</title>
-<style>
-  body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #1e1e21;
-    color: #fff;
-    margin: 0;
-    padding: 0;
-    position: relative;
-    cursor: url('genshin_cursor.cur'), auto; /* Set custom cursor */
-  }
-  .container {
-    max-width: 800px;
-    margin: 20px auto;
-    padding: 20px;
-    background-color: #232327;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
-  }
-  .button {
-    padding: 10px 20px;
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    margin-bottom: 10px;
-  }
-  .button:hover {
-    background-color: #45a049;
-  }
-  .inventory {
-    margin-top: 20px;
-  }
-  .artifact {
-    padding: 10px;
-    border: 1px solid #4a4a4a;
-    border-radius: 5px;
-    margin-bottom: 5px;
-    cursor: pointer;
-    background-color: #363639;
-    transition: background-color 0.3s;
-    position: relative;
-  }
-  .artifact:hover {
-    background-color: #2c2c2f;
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collaborative NSTP Document</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .textarea-content { white-space: pre-wrap; }
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        /* Sync animation indicator */
+        @keyframes pulse-sync {
+            0% { opacity: 1; }
+            50% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+        .syncing .sync-icon { animation: pulse-sync 1s infinite; color: #10B981; }
+    </style>
 </head>
-<body>
+<body class="bg-gray-100 min-h-screen py-10 px-4 sm:px-6 lg:px-8">
 
-<div class="container">
-  <h1 style="text-align: center; font-size: 28px; margin-bottom: 20px;">Genshin Artifact System</h1>
-  <p style="font-size: 18px;">Mora: <span id="mora">0</span></p>
-  <p style="font-size: 18px;">Artifacts: <span id="artifactCount">0</span>/400</p>
-  <button class="button" onclick="buyArtifact()">Buy Artifact (Costs 250 Mora)</button>
-  <button class="button" onclick="rewardRandomArtifacts()">Get 3 Random Artifacts</button>
-  <div class="inventory">
-    <h2 style="font-size: 24px; margin-top: 20px;">Inventory</h2>
-    <ul id="inventoryList" style="list-style-type: none; padding: 0;">
-      
-    </ul>
-  </div>
-</div>
+    <!-- Login / Username Overlay -->
+    <div id="login-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-90 z-50 flex justify-center items-center backdrop-blur-sm transition-opacity">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center">
+            <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+            </div>
+            <h2 class="text-2xl font-bold mb-2">Join Document</h2>
+            <p class="text-sm text-gray-500 mb-6">Enter a display name to collaborate with your group in real-time.</p>
+            <input type="text" id="username-input" class="w-full px-4 py-3 border border-gray-300 rounded-xl mb-4 focus:ring-2 focus:ring-blue-500 outline-none font-medium" placeholder="Your Name (e.g., Maria)" />
+            <button id="join-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors shadow-md">Join Session</button>
+        </div>
+    </div>
 
-<script>
-  let mora = 0;
-  let inventory = [];
-  let artifactCount = 0;
-  let restartThreshold = 60;
-  let moraIndex = 0;
-  const artifactsToWin = 400;
+    <div class="max-w-4xl mx-auto space-y-6 hidden" id="app-container">
+        
+        <!-- Header -->
+        <div class="bg-blue-700 rounded-2xl shadow-lg px-8 py-6 text-white text-center relative overflow-hidden">
+            <div class="absolute top-4 right-4 flex items-center gap-2 text-sm font-medium bg-blue-800/50 px-3 py-1.5 rounded-full" id="sync-status">
+                <svg class="w-4 h-4 sync-icon text-gray-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                <span id="sync-text">Connecting...</span>
+            </div>
+            <h2 class="text-3xl font-bold mt-2">Live NSTP Document</h2>
+            <p class="text-blue-100 mt-2 text-sm">Changes made by anyone are saved and synced instantly to the cloud.</p>
+        </div>
 
-  // Function to add money every 3 seconds
-  setInterval(function() {
-    mora += 100;
-    document.getElementById('mora').innerText = mora;
-  }, 3000);
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+            <!-- Cover Page Section -->
+            <div class="px-8 py-6 border-b border-gray-200 bg-gray-50">
+                <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <span class="bg-blue-600 text-white w-8 h-8 rounded-full inline-flex items-center justify-center mr-3 text-sm">1</span>
+                    Cover Page Details
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Place of Observation</label>
+                        <input type="text" id="place" value="Brgy. San Andres, Cainta, Rizal" oninput="window.debouncedUpdateCover()"
+                            class="cover-input w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">NSTP Instructor's Name</label>
+                        <input type="text" id="instructor" value="Mr./Ms. Juan Dela Cruz" oninput="window.debouncedUpdateCover()"
+                            class="cover-input w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Date</label>
+                        <input type="text" id="date" value="March 2026" oninput="window.debouncedUpdateCover()"
+                            class="cover-input w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Group Members <span class="text-xs font-normal text-gray-500">(One per line)</span></label>
+                        <textarea id="members" rows="4" oninput="window.debouncedUpdateCover()"
+                            class="cover-input w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-y">Maria Santos
+Carlo Reyes
+Angela Cruz
+Mark Villanueva</textarea>
+                    </div>
+                </div>
+            </div>
 
-  // Function to generate a random artifact
-  function generateArtifact() {
-    const artifacts = ['Flower of Life', 'Plume of Death', 'Sands of Eon', 'Goblet of Eonothem', 'Circlet of Logos'];
-    const stats = ['ATK', 'DEF', 'HP', 'Elemental Mastery', 'Energy Recharge'];
-    const randomArtifact = artifacts[Math.floor(Math.random() * artifacts.length)];
-    const randomStat = stats[Math.floor(Math.random() * stats.length)];
-    const randomValue = Math.floor(Math.random() * 21) + 5; // Random value between 5 and 25
-    return {
-      artifact: randomArtifact,
-      stat: randomStat,
-      value: randomValue
-    };
-  }
+            <!-- Additional Pages Section -->
+            <div class="px-8 py-6">
+                <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <span class="bg-blue-600 text-white w-8 h-8 rounded-full inline-flex items-center justify-center mr-3 text-sm">+</span>
+                    Document Body
+                </h3>
+                
+                <div id="pages-container" class="space-y-6">
+                    <!-- Dynamic pages injected here via Firebase -->
+                </div>
 
-  // Function to buy an artifact
-  function buyArtifact() {
-    if (mora >= 250) {
-      mora -= 250;
-      const artifact = generateArtifact();
-      inventory.push(artifact);
-      artifactCount++;
-      updateInventory();
-      updateArtifactCount();
-      document.getElementById('mora').innerText = mora;
-      
-      // Check for win condition
-      if (artifactCount >= artifactsToWin) {
-        winGame();
-      }
-    } else {
-      alert('Not enough Mora to buy artifact!');
-    }
-  }
+                <!-- Page Addition Controls -->
+                <div class="mt-8 pt-6 border-t border-gray-200">
+                    <p class="text-sm font-semibold text-gray-600 mb-3 text-center">Add Collaborative Page:</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <button onclick="window.addPage('text')" class="py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-600 font-semibold hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all flex flex-col items-center justify-center gap-1">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg>
+                            Text Content
+                        </button>
+                        <button onclick="window.addPage('grid2')" class="py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-600 font-semibold hover:border-green-500 hover:text-green-600 hover:bg-green-50 transition-all flex flex-col items-center justify-center gap-1">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                            2x2 Image Grid
+                        </button>
+                        <button onclick="window.addPage('grid3')" class="py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-600 font-semibold hover:border-purple-500 hover:text-purple-600 hover:bg-purple-50 transition-all flex flex-col items-center justify-center gap-1">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1v-2zM4 21a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1v-2zM11 5a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1h-2a1 1 0 01-1-1V5zM11 13a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1h-2a1 1 0 01-1-1v-2zM11 21a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1h-2a1 1 0 01-1-1v-2zM18 5a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1h-2a1 1 0 01-1-1V5zM18 13a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1h-2a1 1 0 01-1-1v-2zM18 21a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1h-2a1 1 0 01-1-1v-2z"></path></svg>
+                            3x3 Image Grid
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-  // Function to reward random artifacts with a chance of removal
-  function rewardRandomArtifacts() {
-    const confirmResult = window.confirm("Would you like to receive 3 random artifacts?");
-    if (confirmResult) {
-      const newArtifacts = [];
-      for (let i = 0; i < 3; i++) {
-        const artifact = generateArtifact();
-        newArtifacts.push(artifact);
-      }
-      
-      inventory = [...inventory, ...newArtifacts];
-      artifactCount += 3;
-      updateInventory();
-      updateArtifactCount();
-      
-      const removalChance = 0.3; // 30% chance of removal
-      if (Math.random() < removalChance) {
-        inventory = inventory.filter(item => !newArtifacts.includes(item));
-        artifactCount -= 3;
-        updateInventory();
-        updateArtifactCount();
-        alert("Oops! The artifacts vanished mysteriously.");
-      }
-    }
-  }
+            <!-- Generate Button -->
+            <div class="px-8 py-6 bg-gray-50 border-t border-gray-200">
+                <button onclick="window.generateWordDoc()" 
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-xl shadow-md hover:shadow-xl transition-all flex justify-center items-center gap-3 text-lg">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                    Download Complete Word Document (.doc)
+                </button>
+            </div>
+        </div>
+    </div>
 
-  // Function to update inventory list
-  function updateInventory() {
-    const inventoryList = document.getElementById('inventoryList');
-    inventoryList.innerHTML = '';
-    inventory.forEach((item, index) => {
-      const li = document.createElement('li');
-      li.className = 'artifact';
-      li.innerHTML = `<strong>${item.artifact}</strong> - ${item.stat}: ${item.value}`;
-      inventoryList.appendChild(li);
-    });
-  }
-  
-  // Function to update artifact count display
-  function updateArtifactCount() {
-    document.getElementById('artifactCount').innerText = artifactCount;
-  }
+    <!-- FIREBASE COLLABORATION LOGIC -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-  // Function to handle win condition
-  function winGame() {
-    alert("Congratulations! You have collected 400 artifacts and won the game!");
-  }
-</script>
+        // User's explicit Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCMQ8hIY1aMYS5c7qjlog3KVczxJKm5MjA",
+            authDomain: "nstp-doc.firebaseapp.com",
+            projectId: "nstp-doc",
+            storageBucket: "nstp-doc.firebasestorage.app",
+            messagingSenderId: "705221516830",
+            appId: "1:705221516830:web:945fb3a3207586d5b8d80f"
+        };
 
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        // Use environment app ID for scoping databases cleanly
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'custom-hosted-app';
+        let myUsername = '';
+        let pageOrder = []; // Local tracker to keep pages in the correct visual order
+        let writeTimers = {};
 
+        // 1. UI Status Indicator
+        function setSyncStatus(status) {
+            const el = document.getElementById('app-container');
+            const txt = document.getElementById('sync-text');
+            if(status === 'syncing') {
+                el.classList.add('syncing');
+                txt.textContent = 'Saving...';
+            } else if (status === 'synced') {
+                el.classList.remove('syncing');
+                txt.textContent = 'Synced Live';
+            }
+        }
+
+        // 2. Authentication Flow
+        document.getElementById('join-btn').addEventListener('click', async () => {
+            const input = document.getElementById('username-input').value.trim();
+            if(!input) return alert("Please enter a name");
+            myUsername = input;
+            document.getElementById('join-btn').textContent = "Connecting...";
+
+            try {
+                // Modified auth flow to prefer custom token if it exists (in the AI preview env)
+                // but seamlessly fall back to pure anonymous auth for your GitHub Pages
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token && Object.keys(firebaseConfig).length === 0) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('app-container').classList.remove('hidden');
+                setupDatabaseListeners();
+            } catch (error) {
+                console.error("Auth error", error);
+                alert("Failed to connect to database. Check credentials or ensure Anonymous sign-in is enabled in Firebase Authentication.");
+                document.getElementById('join-btn').textContent = "Join Session";
+            }
+        });
+
+        // 3. Database Synchronization
+        function setupDatabaseListeners() {
+            setSyncStatus('synced');
+
+            // Listen to Cover Page and Order
+            const coverRef = doc(db, 'artifacts', appId, 'public', 'data', 'cover', 'main');
+            onSnapshot(coverRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.data();
+                    
+                    // Prevent overwriting the inputs if WE were the last ones to type
+                    if (data.lastEditedBy !== myUsername) {
+                        document.getElementById('place').value = data.place || '';
+                        document.getElementById('instructor').value = data.instructor || '';
+                        document.getElementById('date').value = data.date || '';
+                        document.getElementById('members').value = data.members || '';
+                    }
+
+                    // Handle Page Order array synchronization
+                    if (data.pageOrder) {
+                        pageOrder = data.pageOrder;
+                        sortDOMPages();
+                    }
+                } else {
+                    // First time ever opening the document
+                    setDoc(coverRef, {
+                        place: "Brgy. San Andres, Cainta, Rizal",
+                        instructor: "Mr./Ms. Juan Dela Cruz",
+                        date: "March 2026",
+                        members: "Maria Santos\nCarlo Reyes\nAngela Cruz\nMark Villanueva",
+                        pageOrder: [],
+                        lastEditedBy: myUsername
+                    });
+                    window.addPage('text'); // Add a default starting page
+                }
+            }, (error) => console.error(error));
+
+            // Listen to Individual Dynamic Pages
+            const pagesCol = collection(db, 'artifacts', appId, 'public', 'data', 'pages');
+            onSnapshot(pagesCol, (snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    const data = change.doc.data();
+                    const id = change.doc.id;
+
+                    if (change.type === "added") {
+                        if (!document.getElementById(id)) {
+                            renderPageInDOM(id, data);
+                            sortDOMPages();
+                        }
+                    }
+                    if (change.type === "modified") {
+                        if (data.lastEditedBy !== myUsername) {
+                            updatePageInDOM(id, data);
+                        }
+                    }
+                    if (change.type === "removed") {
+                        const el = document.getElementById(id);
+                        if (el) el.remove();
+                        updatePageLabels();
+                    }
+                });
+            }, (error) => console.error(error));
+        }
+
+        // Ensures the UI visual order matches the database order
+        function sortDOMPages() {
+            const container = document.getElementById('pages-container');
+            pageOrder.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) container.appendChild(el); // Appending moves it to the end in the right sequence without recreating it
+            });
+            updatePageLabels();
+        }
+
+        function updatePageLabels() {
+            const pages = document.querySelectorAll('.dynamic-page');
+            pages.forEach((page, index) => {
+                const label = page.querySelector('.page-label');
+                if(label) label.textContent = `Page ${index + 2}`;
+            });
+        }
+
+        // --- GLOBAL WRITE FUNCTIONS ---
+        
+        // Debounce to prevent database spamming on every single keystroke
+        window.debouncedUpdateCover = () => {
+            setSyncStatus('syncing');
+            clearTimeout(writeTimers['cover']);
+            writeTimers['cover'] = setTimeout(() => {
+                setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'cover', 'main'), {
+                    place: document.getElementById('place').value,
+                    instructor: document.getElementById('instructor').value,
+                    date: document.getElementById('date').value,
+                    members: document.getElementById('members').value,
+                    lastEditedBy: myUsername
+                }, { merge: true }).then(() => setSyncStatus('synced'));
+            }, 800);
+        };
+
+        window.debouncedUpdatePage = (pageId) => {
+            setSyncStatus('syncing');
+            clearTimeout(writeTimers[pageId]);
+            writeTimers[pageId] = setTimeout(() => {
+                const pageEl = document.getElementById(pageId);
+                if(!pageEl) return;
+                
+                const type = pageEl.getAttribute('data-type');
+                const title = pageEl.querySelector('.page-title').value;
+                let payload = { title: title, lastEditedBy: myUsername };
+
+                if (type === 'text') {
+                    payload.content = pageEl.querySelector('.page-content').value;
+                } else {
+                    const cells = [];
+                    pageEl.querySelectorAll('.grid-cells-container > div').forEach(cell => {
+                        cells.push({
+                            b64: cell.querySelector('.hidden-b64').value,
+                            caption: cell.querySelector('.cell-caption').value
+                        });
+                    });
+                    payload.cells = cells;
+                }
+
+                setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pages', pageId), payload, { merge: true })
+                    .then(() => setSyncStatus('synced'));
+            }, 800);
+        };
+
+        window.addPage = async (type) => {
+            const pageId = 'page-' + Date.now();
+            setSyncStatus('syncing');
+            
+            let initialData = { type: type, title: '', lastEditedBy: myUsername };
+            if (type === 'text') {
+                initialData.content = '';
+            } else {
+                const count = type === 'grid2' ? 4 : 9;
+                initialData.cells = Array(count).fill({ b64: '', caption: '' });
+            }
+
+            // Create Page
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pages', pageId), initialData);
+            
+            // Append to cover Order
+            pageOrder.push(pageId);
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'cover', 'main'), { pageOrder: pageOrder }, { merge: true });
+            
+            setSyncStatus('synced');
+        };
+
+        window.removePage = async (pageId) => {
+            setSyncStatus('syncing');
+            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pages', pageId));
+            
+            pageOrder = pageOrder.filter(id => id !== pageId);
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'cover', 'main'), { pageOrder: pageOrder }, { merge: true });
+            setSyncStatus('synced');
+        };
+
+        // --- DOM RENDERERS ---
+
+        function renderPageInDOM(pageId, data) {
+            const container = document.getElementById('pages-container');
+            const type = data.type;
+            
+            let contentHTML = '';
+            if (type === 'text') {
+                contentHTML = `
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Content Text</label>
+                        <textarea class="page-content textarea-content w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none resize-y" rows="8" placeholder="Type text here..." oninput="window.debouncedUpdatePage('${pageId}')">${escapeHtml(data.content || '')}</textarea>
+                    </div>
+                `;
+            } else if (type === 'grid2' || type === 'grid3') {
+                const gridClass = type === 'grid2' ? 'grid-cols-2' : 'grid-cols-3';
+                let cellsHtml = '';
+                const cellsData = data.cells || [];
+                
+                cellsData.forEach((cellData, i) => {
+                    const cellId = `${pageId}-cell-${i}`;
+                    const hasImg = !!cellData.b64;
+                    cellsHtml += `
+                        <div class="border border-gray-200 rounded p-2 bg-gray-50 relative flex flex-col gap-2">
+                            <input type="hidden" class="hidden-b64" id="b64-${cellId}" value="${cellData.b64 || ''}">
+                            
+                            <div class="relative w-full ${type === 'grid2' ? 'h-32' : 'h-24'} bg-gray-200 rounded border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-gray-300 transition-colors" 
+                                 onclick="document.getElementById('file-${cellId}').click()" id="preview-container-${cellId}">
+                                <span class="text-xs text-gray-500 font-medium">+ Photo</span>
+                                <img id="preview-img-${cellId}" class="absolute inset-0 w-full h-full object-cover border border-black ${hasImg ? '' : 'hidden'}" src="${cellData.b64 || ''}" />
+                            </div>
+                            
+                            <input type="file" id="file-${cellId}" accept="image/*" class="hidden" onchange="window.handleImageUpload(this, '${pageId}', ${i}, '${type}')">
+                            
+                            <button onclick="window.removeImage('${pageId}', ${i})" class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 shadow hover:bg-red-600 ${hasImg ? '' : 'hidden'}" id="remove-btn-${cellId}">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            </button>
+
+                            <input type="text" class="cell-caption w-full px-2 py-1 text-xs border border-gray-300 rounded outline-none focus:border-blue-500" placeholder="Caption" value="${escapeHtml(cellData.caption || '')}" oninput="window.debouncedUpdatePage('${pageId}')">
+                        </div>
+                    `;
+                });
+
+                contentHTML = `<div class="grid ${gridClass} gap-4 grid-cells-container">${cellsHtml}</div>`;
+            }
+
+            const headerColor = type === 'text' ? 'text-blue-800' : (type === 'grid2' ? 'text-green-800' : 'text-purple-800');
+            const typeLabel = type === 'text' ? 'Text Document' : (type === 'grid2' ? '2x2 Image Grid' : '3x3 Image Grid');
+
+            const pageHTML = `
+                <div id="${pageId}" data-type="${type}" class="dynamic-page relative p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
+                    <button onclick="window.removePage('${pageId}')" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition-colors" title="Remove Page">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                    
+                    <div class="flex justify-between items-end border-b border-gray-100 pb-2 mb-4">
+                        <h4 class="page-label font-bold ${headerColor}">Page</h4>
+                        <span class="text-xs font-semibold px-2 py-1 bg-gray-100 rounded text-gray-500">${typeLabel}</span>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-1">Page Title (Optional)</label>
+                            <input type="text" class="page-title w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Title" value="${escapeHtml(data.title || '')}" oninput="window.debouncedUpdatePage('${pageId}')">
+                        </div>
+                        ${contentHTML}
+                        <p class="text-[10px] text-gray-400 text-right italic">Last edited by: ${escapeHtml(data.lastEditedBy || 'Unknown')}</p>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', pageHTML);
+        }
+
+        // Live DOM updating from others
+        function updatePageInDOM(pageId, data) {
+            const pageEl = document.getElementById(pageId);
+            if(!pageEl) return;
+            
+            pageEl.querySelector('.page-title').value = data.title || '';
+            
+            if (data.type === 'text') {
+                pageEl.querySelector('.page-content').value = data.content || '';
+            } else {
+                const cells = data.cells || [];
+                const cellEls = pageEl.querySelectorAll('.grid-cells-container > div');
+                cells.forEach((cellData, i) => {
+                    const el = cellEls[i];
+                    if(!el) return;
+                    
+                    const cellId = `${pageId}-cell-${i}`;
+                    el.querySelector('.hidden-b64').value = cellData.b64 || '';
+                    el.querySelector('.cell-caption').value = cellData.caption || '';
+                    
+                    const img = el.querySelector(`#preview-img-${cellId}`);
+                    const btn = el.querySelector(`#remove-btn-${cellId}`);
+                    if (cellData.b64) {
+                        img.src = cellData.b64;
+                        img.classList.remove('hidden');
+                        btn.classList.remove('hidden');
+                    } else {
+                        img.src = '';
+                        img.classList.add('hidden');
+                        btn.classList.add('hidden');
+                    }
+                });
+            }
+        }
+
+        // --- IMAGE HANDLING WITH AUTO SYNC ---
+        window.handleImageUpload = (input, pageId, index, type) => {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const targetRatio = type === 'grid3' ? 1 : (4 / 3);
+                    const w = img.width, h = img.height;
+                    const srcRatio = w / h;
+                    
+                    let sWidth = w, sHeight = h, sx = 0, sy = 0;
+                    if (srcRatio > targetRatio) {
+                        sWidth = h * targetRatio;
+                        sx = (w - sWidth) / 2;
+                    } else {
+                        sHeight = w / targetRatio;
+                        sy = (h - sHeight) / 2;
+                    }
+
+                    canvas.width = type === 'grid3' ? 400 : 600;
+                    canvas.height = type === 'grid3' ? 400 : 450;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = "#ffffff";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
+                    
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    
+                    // Update Local DOM
+                    const cellId = `${pageId}-cell-${index}`;
+                    document.getElementById(`b64-${cellId}`).value = dataUrl;
+                    const previewImg = document.getElementById(`preview-img-${cellId}`);
+                    previewImg.src = dataUrl;
+                    previewImg.classList.remove('hidden');
+                    document.getElementById(`remove-btn-${cellId}`).classList.remove('hidden');
+                    
+                    // Trigger Firebase Save
+                    window.debouncedUpdatePage(pageId);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        };
+
+        window.removeImage = (pageId, index) => {
+            event.stopPropagation();
+            const cellId = `${pageId}-cell-${index}`;
+            document.getElementById(`b64-${cellId}`).value = '';
+            document.getElementById(`preview-img-${cellId}`).classList.add('hidden');
+            document.getElementById(`remove-btn-${cellId}`).classList.add('hidden');
+            document.getElementById(`file-${cellId}`).value = '';
+            window.debouncedUpdatePage(pageId);
+        };
+
+        // --- UTILS ---
+        function escapeHtml(unsafe) {
+            if(!unsafe) return "";
+            return String(unsafe).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        // --- MS WORD EXPORT (Reads the live synced DOM state perfectly) ---
+        window.generateWordDoc = function() {
+            const place = document.getElementById('place').value;
+            const instructor = document.getElementById('instructor').value;
+            const date = document.getElementById('date').value;
+            
+            const membersList = document.getElementById('members').value
+                .split('\n').filter(name => name.trim() !== '')
+                .map(name => `<p style="font-size: 12pt; font-family: 'Times New Roman', serif; margin: 0; padding: 2pt 0; line-height: 1.2; text-align: center;">${escapeHtml(name)}</p>`).join('');
+
+            let dynamicPagesHtml = '';
+            // We use the pageOrder array to export them in exactly the right sequence
+            pageOrder.forEach((pageId) => {
+                const pageEl = document.getElementById(pageId);
+                if(!pageEl) return;
+
+                const type = pageEl.getAttribute('data-type');
+                const title = pageEl.querySelector('.page-title').value.trim();
+                
+                dynamicPagesHtml += `<br clear="all" style="mso-special-character:line-break;page-break-before:always" />`;
+                
+                if (title) dynamicPagesHtml += `<p style="font-size: 12pt; font-weight: bold; font-family: 'Times New Roman', serif; text-align: left; margin: 0 0 12pt 0;">${escapeHtml(title)}</p>`;
+                
+                if (type === 'text') {
+                    const content = pageEl.querySelector('.page-content').value;
+                    if (content) {
+                        content.split('\n').forEach(p => {
+                            const text = p.trim();
+                            if (text === '') dynamicPagesHtml += `<p style="font-size: 12pt; font-family: 'Times New Roman', serif; margin: 0; padding: 0;">&nbsp;</p>`;
+                            else dynamicPagesHtml += `<p style="font-size: 12pt; font-family: 'Times New Roman', serif; text-align: justify; margin: 0 0 10pt 0;">${escapeHtml(text)}</p>`;
+                        });
+                    }
+                } else if (type === 'grid2' || type === 'grid3') {
+                    const cols = type === 'grid2' ? 2 : 3;
+                    const imgWidth = type === 'grid2' ? 300 : 180; 
+                    const imgHeight = type === 'grid2' ? 225 : 180;
+                    
+                    dynamicPagesHtml += `<table style="width:100%; border-collapse: collapse; border: none; table-layout: fixed;" border="0" cellspacing="0" cellpadding="0">`;
+                    const cells = Array.from(pageEl.querySelectorAll('.grid-cells-container > div'));
+                    
+                    for(let i = 0; i < cells.length; i += cols) {
+                        dynamicPagesHtml += `<tr>`;
+                        for(let j = 0; j < cols; j++) {
+                            const cell = cells[i + j];
+                            dynamicPagesHtml += `<td style="width: ${100/cols}%; text-align: center; vertical-align: top; padding: 5pt;">`;
+                            if (cell) {
+                                const b64 = cell.querySelector('.hidden-b64').value;
+                                const cap = cell.querySelector('.cell-caption').value.trim();
+                                if (b64) dynamicPagesHtml += `<img src="${b64}" width="${imgWidth}" height="${imgHeight}" style="width:${imgWidth}px; height:${imgHeight}px; border: 1pt solid black;" />`;
+                                if (cap) dynamicPagesHtml += `<p style="font-family: 'Times New Roman', serif; font-size: 12pt; text-align: center; margin-top: 5pt; margin-bottom: 10pt;">${escapeHtml(cap)}</p>`;
+                            }
+                            dynamicPagesHtml += `</td>`;
+                        }
+                        dynamicPagesHtml += `</tr>`;
+                    }
+                    dynamicPagesHtml += `</table>`;
+                }
+            });
+
+            const wordDocumentXML = `
+                <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+                <head><meta charset="utf-8"><title>Document</title>
+                <style>
+                    @page WordSection1 { size: 8.5in 11.0in; margin: 1.0in 1.0in 1.0in 1.0in; mso-header-margin: 0.5in; mso-footer-margin: 0.5in; mso-title-page: yes; mso-first-footer: f-first; mso-footer: f-rest; }
+                    div.WordSection1 { page: WordSection1; }
+                    body { font-family: 'Times New Roman', serif; }
+                    table { table-layout: fixed; width: 100%; }
+                </style></head>
+                <body>
+                    <div class="WordSection1">
+                        <div style="text-align: center;">
+                            <div style="margin-top: 50pt;"></div>
+                            <p style="font-size: 16pt; font-weight: bold; font-family: 'Times New Roman', serif; margin: 0; padding: 2pt 0;">Midterm Examination</p>
+                            <p style="font-size: 16pt; font-weight: bold; font-family: 'Times New Roman', serif; margin: 0; padding: 2pt 0;">Local Environment and Mobility Assessment</p>
+                            <p style="font-size: 14pt; font-family: 'Times New Roman', serif; margin: 10pt 0 0 0; padding: 0;">${escapeHtml(place)}</p>
+                            <div style="margin-top: 140pt;">
+                                <p style="font-size: 12pt; font-family: 'Times New Roman', serif; margin: 0; padding: 2pt 0;">NSTP Instructor:</p>
+                                <p style="font-size: 12pt; font-family: 'Times New Roman', serif; margin: 0; padding: 2pt 0;">${escapeHtml(instructor)}</p>
+                            </div>
+                            <div style="margin-top: 140pt;">
+                                <p style="font-size: 12pt; font-family: 'Times New Roman', serif; margin: 0; padding: 2pt 0;">Group Members:</p>
+                                ${membersList}
+                            </div>
+                            <div style="margin-top: 20pt;">
+                                <p style="font-size: 12pt; font-family: 'Times New Roman', serif; margin: 0; padding: 2pt 0;">${escapeHtml(date)}</p>
+                            </div>
+                        </div>
+                        ${dynamicPagesHtml}
+                        <div style="mso-element:footer" id="f-first"></div>
+                        <div style="mso-element:footer" id="f-rest">
+                            <p style="text-align: right; font-size: 12pt; font-family: 'Times New Roman', serif; margin: 0;">
+                                <span style="mso-field-code:' PAGE '"></span>
+                            </p>
+                        </div>
+                    </div>
+                </body></html>`;
+
+            const blob = new Blob(['\ufeff', wordDocumentXML], { type: 'application/msword' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'NSTP_Assessment_Document.doc';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+    </script>
 </body>
 </html>
