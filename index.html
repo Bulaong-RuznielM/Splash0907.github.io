@@ -27,8 +27,9 @@
             <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
             </div>
-            <h2 class="text-2xl font-bold mb-2">Join Document</h2>
-            <p class="text-sm text-gray-500 mb-6">Enter a display name to collaborate with your group in real-time.</p>
+            <h2 class="text-2xl font-bold mb-2">Join Room <span id="room-id-display" class="text-blue-600"></span></h2>
+            <p class="text-sm text-gray-500 mb-4">Enter a display name to collaborate with your group in real-time.</p>
+            <p id="login-error" class="text-red-500 text-sm font-semibold mb-3 hidden"></p>
             <input type="text" id="username-input" class="w-full px-4 py-3 border border-gray-300 rounded-xl mb-4 focus:ring-2 focus:ring-blue-500 outline-none font-medium" placeholder="Your Name (e.g., Maria)" />
             <button id="join-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors shadow-md">Join Session</button>
         </div>
@@ -47,6 +48,16 @@
         </div>
     </div>
 
+    <!-- Manual Copy Modal (Fallback for iFrame restrictions) -->
+    <div id="manual-copy-modal" class="fixed inset-0 bg-gray-900 bg-opacity-70 z-[100] flex justify-center items-center backdrop-blur-sm hidden transition-opacity">
+        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full text-center">
+            <h3 class="text-xl font-bold mb-2">Share Room Link</h3>
+            <p class="text-sm text-gray-500 mb-4">Your browser blocked automatic copying. Please manually copy the link below to share with your group.</p>
+            <input type="text" id="manual-room-link" class="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-blue-500 outline-none text-sm text-gray-700 font-mono" readonly />
+            <button onclick="document.getElementById('manual-copy-modal').classList.add('hidden')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition-colors shadow-md">Close</button>
+        </div>
+    </div>
+
     <!-- Main App Layout (Content + Sidebar) -->
     <div class="max-w-6xl mx-auto space-y-6 lg:space-y-0 lg:flex lg:gap-6 hidden items-start" id="app-container">
         
@@ -59,8 +70,14 @@
                     <svg class="w-4 h-4 sync-icon text-gray-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
                     <span id="sync-text">Connecting...</span>
                 </div>
-                <h2 class="text-3xl font-bold mt-2">Live NSTP Document</h2>
-                <p class="text-blue-100 mt-2 text-sm">Changes made by anyone are saved and synced instantly to the cloud.</p>
+                <div class="flex flex-col items-center justify-center gap-3 mt-2">
+                    <h2 class="text-3xl font-bold">Live NSTP Document</h2>
+                    <button id="copy-link-btn" onclick="window.copyRoomLink()" class="flex items-center gap-1.5 bg-blue-800 hover:bg-blue-900 text-sm font-semibold px-4 py-2 rounded-lg transition-colors shadow-sm cursor-pointer border border-blue-600" title="Copy link to share">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+                        <span>Share Room Link</span>
+                    </button>
+                </div>
+                <p class="text-blue-100 mt-4 text-sm">This specific link is saved forever. You can close the tab and return later.</p>
             </div>
 
             <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
@@ -168,6 +185,70 @@ Mark Villanueva</textarea>
         import { getFirestore, doc, setDoc, onSnapshot, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
+        // --- URL ROOM SETUP (PERSISTENCE) ---
+        const urlParams = new URLSearchParams(window.location.search);
+        let currentRoomId = urlParams.get('room');
+        if (!currentRoomId) {
+            // Generate a random 6-character string if no room is specified
+            currentRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+            // Instantly redirect them to their specific room link
+            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + currentRoomId;
+            window.history.replaceState({path:newUrl}, '', newUrl);
+        }
+
+        // Display the room ID on the login screen
+        const roomDisplay = document.getElementById('room-id-display');
+        if (roomDisplay) roomDisplay.textContent = currentRoomId;
+
+        window.copyRoomLink = async () => {
+            const linkToCopy = window.location.href;
+            let success = false;
+            
+            try {
+                // Try modern clipboard API first
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(linkToCopy);
+                    success = true;
+                } else {
+                    throw new Error("Clipboard API unavailable");
+                }
+            } catch (err) {
+                // Fallback to execCommand, catch SecurityError in sandboxed environments
+                try {
+                    const tempInput = document.createElement("input");
+                    tempInput.value = linkToCopy;
+                    tempInput.style.position = "absolute";
+                    tempInput.style.left = "-9999px";
+                    document.body.appendChild(tempInput);
+                    tempInput.focus();
+                    tempInput.select();
+                    success = document.execCommand("copy");
+                    document.body.removeChild(tempInput);
+                } catch (fallbackErr) {
+                    console.warn("Fallback copy failed due to browser security restrictions:", fallbackErr);
+                    success = false;
+                }
+            }
+            
+            if (success) {
+                const btnSpan = document.querySelector('#copy-link-btn span');
+                const originalText = btnSpan.textContent;
+                btnSpan.textContent = "Copied to Clipboard!";
+                setTimeout(() => btnSpan.textContent = originalText, 2500);
+            } else {
+                // If the browser strictly blocks clipboard access, show a graceful fallback modal
+                const modal = document.getElementById('manual-copy-modal');
+                const input = document.getElementById('manual-room-link');
+                input.value = linkToCopy;
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    input.focus();
+                    input.select();
+                }, 100);
+            }
+        };
+
+
         // User's explicit Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyCMQ8hIY1aMYS5c7qjlog3KVczxJKm5MjA",
@@ -182,8 +263,14 @@ Mark Villanueva</textarea>
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        // Use environment app ID for scoping databases cleanly
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'custom-hosted-app';
+        // Base App ID required by Firebase structure rules
+        const baseAppId = typeof __app_id !== 'undefined' ? __app_id : 'custom-hosted-app';
+        
+        // Use the Unique Room ID to completely isolate this group's document data
+        const COLL_COVER = `cover_${currentRoomId}`;
+        const COLL_PAGES = `pages_${currentRoomId}`;
+        const COLL_PRESENCE = `presence_${currentRoomId}`;
+
         let myUsername = '';
         let myUid = '';
         let pageOrder = []; 
@@ -193,7 +280,7 @@ Mark Villanueva</textarea>
         let activeUsers = {};
         let myPresenceRef = null;
         let presenceInterval = null;
-        let openMenuUid = null; // Tracks which dropdown menu is currently open
+        let openMenuUid = null; 
 
         // Global click listener to close menu when clicking outside
         document.addEventListener('click', (e) => {
@@ -212,7 +299,7 @@ Mark Villanueva</textarea>
             } else {
                 openMenuUid = uid;
             }
-            renderPresenceUI(); // Re-render to show/hide menu instantly
+            renderPresenceUI(); 
         };
 
         // 1. UI Status Indicator
@@ -231,7 +318,15 @@ Mark Villanueva</textarea>
         // 2. Authentication Flow
         document.getElementById('join-btn').addEventListener('click', async () => {
             const input = document.getElementById('username-input').value.trim();
-            if(!input) return alert("Please enter a name");
+            const errorMsg = document.getElementById('login-error');
+            
+            if(!input) {
+                errorMsg.textContent = "Please enter a name.";
+                errorMsg.classList.remove('hidden');
+                return;
+            }
+            errorMsg.classList.add('hidden');
+            
             myUsername = input;
             document.getElementById('join-btn').textContent = "Connecting...";
 
@@ -251,7 +346,8 @@ Mark Villanueva</textarea>
                 startPresence(myUid);
             } catch (error) {
                 console.error("Auth error", error);
-                alert("Failed to connect to database. Check credentials or ensure Anonymous sign-in is enabled in Firebase Authentication.");
+                errorMsg.textContent = "Failed to connect to database. Check credentials or ensure Anonymous sign-in is enabled.";
+                errorMsg.classList.remove('hidden');
                 document.getElementById('join-btn').textContent = "Join Session";
             }
         });
@@ -261,7 +357,7 @@ Mark Villanueva</textarea>
             setSyncStatus('synced');
 
             // Listen to Cover Page and Order
-            const coverRef = doc(db, 'artifacts', appId, 'public', 'data', 'cover', 'main');
+            const coverRef = doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_COVER, 'main');
             onSnapshot(coverRef, (snapshot) => {
                 if (snapshot.exists()) {
                     const data = snapshot.data();
@@ -292,7 +388,7 @@ Mark Villanueva</textarea>
             }, (error) => console.error(error));
 
             // Listen to Individual Dynamic Pages
-            const pagesCol = collection(db, 'artifacts', appId, 'public', 'data', 'pages');
+            const pagesCol = collection(db, 'artifacts', baseAppId, 'public', 'data', COLL_PAGES);
             onSnapshot(pagesCol, (snapshot) => {
                 snapshot.docChanges().forEach((change) => {
                     const data = change.doc.data();
@@ -318,7 +414,7 @@ Mark Villanueva</textarea>
 
         // --- PRESENCE (ACTIVE USERS) TRACKING ---
         async function startPresence(uid) {
-            myPresenceRef = doc(db, 'artifacts', appId, 'public', 'data', 'presence', uid);
+            myPresenceRef = doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_PRESENCE, uid);
             
             // Set initial login record
             await setDoc(myPresenceRef, {
@@ -333,7 +429,7 @@ Mark Villanueva</textarea>
             }, 10000);
 
             // Listen to all users' presence
-            const presenceCol = collection(db, 'artifacts', appId, 'public', 'data', 'presence');
+            const presenceCol = collection(db, 'artifacts', baseAppId, 'public', 'data', COLL_PRESENCE);
             onSnapshot(presenceCol, (snapshot) => {
                 activeUsers = {};
                 snapshot.docs.forEach(docSnap => {
@@ -386,7 +482,7 @@ Mark Villanueva</textarea>
                             </button>
                         </div>
                     </div>
-                ` : '<div class="w-6 ml-2"></div>'; // Empty placeholder to keep alignment consistent
+                ` : '<div class="w-6 ml-2"></div>'; 
 
                 html += `
                     <div class="relative flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100 shadow-sm transition-all hover:bg-gray-100">
@@ -447,7 +543,7 @@ Mark Villanueva</textarea>
             const password = document.getElementById('admin-password-input').value;
             if (password === "0907") {
                 try {
-                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'presence', targetUidToRemove));
+                    await deleteDoc(doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_PRESENCE, targetUidToRemove));
                     document.getElementById('password-modal').classList.add('hidden');
                 } catch (e) {
                     console.error("Error removing user:", e);
@@ -487,7 +583,7 @@ Mark Villanueva</textarea>
             setSyncStatus('syncing');
             clearTimeout(writeTimers['cover']);
             writeTimers['cover'] = setTimeout(() => {
-                setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'cover', 'main'), {
+                setDoc(doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_COVER, 'main'), {
                     place: document.getElementById('place').value,
                     instructor: document.getElementById('instructor').value,
                     date: document.getElementById('date').value,
@@ -521,7 +617,7 @@ Mark Villanueva</textarea>
                     payload.cells = cells;
                 }
 
-                setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pages', pageId), payload, { merge: true })
+                setDoc(doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_PAGES, pageId), payload, { merge: true })
                     .then(() => setSyncStatus('synced'));
             }, 800);
         };
@@ -538,17 +634,17 @@ Mark Villanueva</textarea>
                 initialData.cells = Array(count).fill({ b64: '', caption: '' });
             }
 
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pages', pageId), initialData);
+            await setDoc(doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_PAGES, pageId), initialData);
             pageOrder.push(pageId);
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'cover', 'main'), { pageOrder: pageOrder }, { merge: true });
+            await setDoc(doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_COVER, 'main'), { pageOrder: pageOrder }, { merge: true });
             setSyncStatus('synced');
         };
 
         window.removePage = async (pageId) => {
             setSyncStatus('syncing');
-            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'pages', pageId));
+            await deleteDoc(doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_PAGES, pageId));
             pageOrder = pageOrder.filter(id => id !== pageId);
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'cover', 'main'), { pageOrder: pageOrder }, { merge: true });
+            await setDoc(doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_COVER, 'main'), { pageOrder: pageOrder }, { merge: true });
             setSyncStatus('synced');
         };
 
