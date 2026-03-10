@@ -193,6 +193,27 @@ Mark Villanueva</textarea>
         let activeUsers = {};
         let myPresenceRef = null;
         let presenceInterval = null;
+        let openMenuUid = null; // Tracks which dropdown menu is currently open
+
+        // Global click listener to close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.user-menu-container')) {
+                if (openMenuUid) {
+                    openMenuUid = null;
+                    renderPresenceUI();
+                }
+            }
+        });
+
+        // Toggle user menu function
+        window.toggleUserMenu = (uid) => {
+            if (openMenuUid === uid) {
+                openMenuUid = null;
+            } else {
+                openMenuUid = uid;
+            }
+            renderPresenceUI(); // Re-render to show/hide menu instantly
+        };
 
         // 1. UI Status Indicator
         function setSyncStatus(status) {
@@ -350,15 +371,26 @@ Mark Villanueva</textarea>
                 const initial = u.username ? u.username.charAt(0).toUpperCase() : '?';
                 const youBadge = uid === myUid ? `<span class="text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded ml-2">You</span>` : '';
 
-                const removeBtn = !isOnline ? `
-                    <button onclick="window.removeOfflineUser('${uid}')" class="absolute -top-1.5 -right-1.5 bg-red-100 text-red-600 border border-red-200 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-600 hover:text-white shadow-sm" title="Remove offline user">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
-                ` : '';
+                // 3-dots Menu HTML (Only for offline users)
+                const menuHtml = !isOnline ? `
+                    <div class="relative ml-2 user-menu-container">
+                        <button onclick="window.toggleUserMenu('${uid}')" class="p-1 rounded-md hover:bg-gray-200 text-gray-500 transition-colors focus:outline-none flex items-center justify-center">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
+                            </svg>
+                        </button>
+                        <div class="${openMenuUid === uid ? 'block' : 'hidden'} absolute right-0 top-full mt-1 w-32 bg-white rounded-md shadow-lg border border-gray-100 z-50 py-1">
+                            <button onclick="window.removeOfflineUser('${uid}'); window.toggleUserMenu('${uid}');" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                ` : '<div class="w-6 ml-2"></div>'; // Empty placeholder to keep alignment consistent
 
                 html += `
-                    <div class="relative group flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100 shadow-sm transition-all hover:bg-gray-100">
-                        <div class="flex items-center gap-3">
+                    <div class="relative flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100 shadow-sm transition-all hover:bg-gray-100">
+                        <div class="flex items-center gap-3 overflow-hidden">
                             <div class="w-10 h-10 rounded-full bg-blue-100 flex-shrink-0 flex items-center justify-center text-blue-600 font-bold text-lg">
                                 ${escapeHtml(initial)}
                             </div>
@@ -373,18 +405,19 @@ Mark Villanueva</textarea>
                                 </p>
                             </div>
                         </div>
-                        <div class="text-right flex-shrink-0 pl-2 border-l border-gray-200">
-                            <p class="text-[9px] text-gray-400 uppercase tracking-widest font-semibold mb-0.5">Logged in</p>
-                            <p class="text-xs font-bold text-gray-700">${formatTime(joinedDiff)}</p>
+                        <div class="flex items-center flex-shrink-0">
+                            <div class="text-right pl-2 border-l border-gray-200">
+                                <p class="text-[9px] text-gray-400 uppercase tracking-widest font-semibold mb-0.5">Logged in</p>
+                                <p class="text-xs font-bold text-gray-700">${formatTime(joinedDiff)}</p>
+                            </div>
+                            ${menuHtml}
                         </div>
-                        ${removeBtn}
                     </div>
                 `;
             });
             list.innerHTML = html;
         }
 
-        // Helper: Formats milliseconds into clean human-readable text (e.g. "45s", "15m", "2h")
         // Helper: Formats milliseconds into clean human-readable text (e.g. "45s", "15m", "2h")
         function formatTime(ms) {
             const totalSeconds = Math.max(0, Math.floor(ms / 1000));
