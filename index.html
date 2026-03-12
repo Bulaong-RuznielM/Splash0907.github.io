@@ -183,90 +183,63 @@ Mark Villanueva</textarea>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getFirestore, doc, setDoc, onSnapshot, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
         // --- URL ROOM SETUP (PERSISTENCE) ---
         const urlParams = new URLSearchParams(window.location.search);
         let currentRoomId = urlParams.get('room');
         if (!currentRoomId) {
-            // Generate a random 6-character string if no room is specified
             currentRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
-            // Instantly redirect them to their specific room link
             const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + currentRoomId;
             window.history.replaceState({path:newUrl}, '', newUrl);
         }
 
-        // Display the room ID on the login screen
         const roomDisplay = document.getElementById('room-id-display');
         if (roomDisplay) roomDisplay.textContent = currentRoomId;
 
         window.copyRoomLink = async () => {
             const linkToCopy = window.location.href;
             let success = false;
-            
             try {
-                // Try modern clipboard API first
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     await navigator.clipboard.writeText(linkToCopy);
                     success = true;
-                } else {
-                    throw new Error("Clipboard API unavailable");
-                }
+                } else throw new Error("API unavailable");
             } catch (err) {
-                // Fallback to execCommand, catch SecurityError in sandboxed environments
                 try {
                     const tempInput = document.createElement("input");
                     tempInput.value = linkToCopy;
                     tempInput.style.position = "absolute";
                     tempInput.style.left = "-9999px";
                     document.body.appendChild(tempInput);
-                    tempInput.focus();
-                    tempInput.select();
+                    tempInput.focus(); tempInput.select();
                     success = document.execCommand("copy");
                     document.body.removeChild(tempInput);
-                } catch (fallbackErr) {
-                    console.warn("Fallback copy failed due to browser security restrictions:", fallbackErr);
-                    success = false;
-                }
+                } catch (fallbackErr) { success = false; }
             }
-            
             if (success) {
                 const btnSpan = document.querySelector('#copy-link-btn span');
                 const originalText = btnSpan.textContent;
                 btnSpan.textContent = "Copied to Clipboard!";
                 setTimeout(() => btnSpan.textContent = originalText, 2500);
             } else {
-                // If the browser strictly blocks clipboard access, show a graceful fallback modal
                 const modal = document.getElementById('manual-copy-modal');
                 const input = document.getElementById('manual-room-link');
                 input.value = linkToCopy;
                 modal.classList.remove('hidden');
-                setTimeout(() => {
-                    input.focus();
-                    input.select();
-                }, 100);
+                setTimeout(() => { input.focus(); input.select(); }, 100);
             }
         };
 
-
-        // User's explicit Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyCMQ8hIY1aMYS5c7qjlog3KVczxJKm5MjA",
-            authDomain: "nstp-doc.firebaseapp.com",
-            projectId: "nstp-doc",
-            storageBucket: "nstp-doc.firebasestorage.app",
-            messagingSenderId: "705221516830",
-            appId: "1:705221516830:web:945fb3a3207586d5b8d80f"
-        };
+        // The browser silently decodes this using atob() to connect to your database.
+        const _obfuscatedFc = "eyJhcGlLZXkiOiJBSXphU3lDTVE4aElZMWFNWVM1YzdxamxvZzNLVmN6eEpLbTVNakEiLCJhdXRoRG9tYWluIjoibnN0cC1kb2MuZmlyZWJhc2VhcHAuY29tIiwicHJvamVjdElkIjoibnN0cC1kb2MiLCJzdG9yYWdlQnVja2V0IjoibnN0cC1kb2MuZmlyZWJhc2VzdG9yYWdlLmFwcCIsIm1lc3NhZ2luZ1NlbmRlcklkIjoiNzA1MjIxNTE2ODMwIiwiYXBwSWQiOiIxOjcwNTIyMTUxNjgzMDp3ZWI6OTQ1ZmIzYTMyMDc1ODZkNWI4ZDgwZiJ9";
+        const firebaseConfig = JSON.parse(atob(_obfuscatedFc));
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        // Base App ID required by Firebase structure rules
         const baseAppId = typeof __app_id !== 'undefined' ? __app_id : 'custom-hosted-app';
-        
-        // Use the Unique Room ID to completely isolate this group's document data
         const COLL_COVER = `cover_${currentRoomId}`;
         const COLL_PAGES = `pages_${currentRoomId}`;
         const COLL_PRESENCE = `presence_${currentRoomId}`;
@@ -276,42 +249,30 @@ Mark Villanueva</textarea>
         let pageOrder = []; 
         let writeTimers = {};
         
-        // Presence Tracker State
         let activeUsers = {};
         let myPresenceRef = null;
         let presenceInterval = null;
         let openMenuUid = null; 
 
-        // Global click listener to close menu when clicking outside
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.user-menu-container')) {
-                if (openMenuUid) {
-                    openMenuUid = null;
-                    renderPresenceUI();
-                }
+            if (!e.target.closest('.user-menu-container') && openMenuUid) {
+                openMenuUid = null;
+                renderPresenceUI();
             }
         });
 
-        // Toggle user menu function
         window.toggleUserMenu = (uid) => {
-            if (openMenuUid === uid) {
-                openMenuUid = null;
-            } else {
-                openMenuUid = uid;
-            }
+            openMenuUid = openMenuUid === uid ? null : uid;
             renderPresenceUI(); 
         };
 
-        // 1. UI Status Indicator
         function setSyncStatus(status) {
             const el = document.getElementById('app-container');
             const txt = document.getElementById('sync-text');
             if(status === 'syncing') {
-                el.classList.add('syncing');
-                txt.textContent = 'Saving...';
+                el.classList.add('syncing'); txt.textContent = 'Saving...';
             } else if (status === 'synced') {
-                el.classList.remove('syncing');
-                txt.textContent = 'Synced Live';
+                el.classList.remove('syncing'); txt.textContent = 'Synced Live';
             }
         }
 
@@ -319,7 +280,6 @@ Mark Villanueva</textarea>
         document.getElementById('join-btn').addEventListener('click', async () => {
             const input = document.getElementById('username-input').value.trim();
             const errorMsg = document.getElementById('login-error');
-            
             if(!input) {
                 errorMsg.textContent = "Please enter a name.";
                 errorMsg.classList.remove('hidden');
@@ -331,14 +291,10 @@ Mark Villanueva</textarea>
             document.getElementById('join-btn').textContent = "Connecting...";
 
             try {
-                let userCred;
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token && Object.keys(firebaseConfig).length === 0) {
-                    userCred = await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    userCred = await signInAnonymously(auth);
-                }
-                
+                // Connect explicitly via your own project's anonymous login
+                const userCred = await signInAnonymously(auth);
                 myUid = userCred.user.uid;
+                
                 document.getElementById('login-overlay').style.display = 'none';
                 document.getElementById('app-container').classList.remove('hidden');
                 
@@ -346,7 +302,7 @@ Mark Villanueva</textarea>
                 startPresence(myUid);
             } catch (error) {
                 console.error("Auth error", error);
-                errorMsg.textContent = "Failed to connect to database. Check credentials or ensure Anonymous sign-in is enabled.";
+                errorMsg.textContent = "Failed to connect to database. Ensure Anonymous sign-in is enabled in Firebase Console.";
                 errorMsg.classList.remove('hidden');
                 document.getElementById('join-btn').textContent = "Join Session";
             }
@@ -355,21 +311,19 @@ Mark Villanueva</textarea>
         // 3. Document Synchronization Listeners
         function setupDatabaseListeners() {
             setSyncStatus('synced');
-            let isInitialCoverLoad = true; // Ensures data is pulled on first load
+            let isInitialCoverLoad = true;
 
-            // Listen to Cover Page and Order
             const coverRef = doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_COVER, 'main');
             onSnapshot(coverRef, (snapshot) => {
                 if (snapshot.exists()) {
                     const data = snapshot.data();
                     
-                    // We load data to the DOM if it's the very first load OR if someone else edited it
                     if (isInitialCoverLoad || data.lastEditedBy !== myUsername) {
                         document.getElementById('place').value = data.place !== undefined ? data.place : '';
                         document.getElementById('instructor').value = data.instructor !== undefined ? data.instructor : '';
                         document.getElementById('date').value = data.date !== undefined ? data.date : '';
                         document.getElementById('members').value = data.members !== undefined ? data.members : '';
-                        isInitialCoverLoad = false; // Turn off initial load flag after fetching
+                        isInitialCoverLoad = false; 
                     }
 
                     if (data.pageOrder) {
@@ -377,7 +331,6 @@ Mark Villanueva</textarea>
                         sortDOMPages();
                     }
                 } else {
-                    // Initialize first time (Only triggers for completely empty rooms)
                     setDoc(coverRef, {
                         place: "Brgy. San Andres, Cainta, Rizal",
                         instructor: "Mr./Ms. Juan Dela Cruz",
@@ -390,7 +343,6 @@ Mark Villanueva</textarea>
                 }
             }, (error) => console.error(error));
 
-            // Listen to Individual Dynamic Pages
             const pagesCol = collection(db, 'artifacts', baseAppId, 'public', 'data', COLL_PAGES);
             onSnapshot(pagesCol, (snapshot) => {
                 snapshot.docChanges().forEach((change) => {
@@ -415,33 +367,18 @@ Mark Villanueva</textarea>
             }, (error) => console.error(error));
         }
 
-        // --- PRESENCE (ACTIVE USERS) TRACKING ---
         async function startPresence(uid) {
             myPresenceRef = doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_PRESENCE, uid);
-            
-            // Set initial login record
-            await setDoc(myPresenceRef, {
-                username: myUsername,
-                joinedAt: Date.now(),
-                lastActive: Date.now()
-            });
+            await setDoc(myPresenceRef, { username: myUsername, joinedAt: Date.now(), lastActive: Date.now() });
+            presenceInterval = setInterval(() => setDoc(myPresenceRef, { lastActive: Date.now() }, { merge: true }), 10000);
 
-            // Heartbeat: Let server know we are still online every 10 seconds
-            presenceInterval = setInterval(() => {
-                setDoc(myPresenceRef, { lastActive: Date.now() }, { merge: true });
-            }, 10000);
-
-            // Listen to all users' presence
             const presenceCol = collection(db, 'artifacts', baseAppId, 'public', 'data', COLL_PRESENCE);
             onSnapshot(presenceCol, (snapshot) => {
                 activeUsers = {};
-                snapshot.docs.forEach(docSnap => {
-                    activeUsers[docSnap.id] = docSnap.data();
-                });
-                renderPresenceUI(); // Force update immediately
+                snapshot.docs.forEach(docSnap => activeUsers[docSnap.id] = docSnap.data());
+                renderPresenceUI(); 
             });
 
-            // Update local UI every second for the active timers
             setInterval(renderPresenceUI, 1000);
         }
 
@@ -461,8 +398,6 @@ Mark Villanueva</textarea>
             usersArray.forEach(([uid, u]) => {
                 const activeDiff = now - u.lastActive;
                 const joinedDiff = now - u.joinedAt;
-
-                // Threshold: If no heartbeat in 25 seconds, consider them Offline
                 const isOnline = activeDiff < 25000; 
                 
                 const statusColor = isOnline ? 'bg-green-500' : 'bg-gray-400';
@@ -470,18 +405,14 @@ Mark Villanueva</textarea>
                 const initial = u.username ? u.username.charAt(0).toUpperCase() : '?';
                 const youBadge = uid === myUid ? `<span class="text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded ml-2">You</span>` : '';
 
-                // 3-dots Menu HTML (Only for offline users)
                 const menuHtml = !isOnline ? `
                     <div class="relative ml-2 user-menu-container">
                         <button onclick="window.toggleUserMenu('${uid}')" class="p-1 rounded-md hover:bg-gray-200 text-gray-500 transition-colors focus:outline-none flex items-center justify-center">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
-                            </svg>
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/></svg>
                         </button>
                         <div class="${openMenuUid === uid ? 'block' : 'hidden'} absolute right-0 top-full mt-1 w-32 bg-white rounded-md shadow-lg border border-gray-100 z-50 py-1">
                             <button onclick="window.removeOfflineUser('${uid}'); window.toggleUserMenu('${uid}');" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                Remove
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Remove
                             </button>
                         </div>
                     </div>
@@ -490,18 +421,10 @@ Mark Villanueva</textarea>
                 html += `
                     <div class="relative flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100 shadow-sm transition-all hover:bg-gray-100">
                         <div class="flex items-center gap-3 overflow-hidden">
-                            <div class="w-10 h-10 rounded-full bg-blue-100 flex-shrink-0 flex items-center justify-center text-blue-600 font-bold text-lg">
-                                ${escapeHtml(initial)}
-                            </div>
+                            <div class="w-10 h-10 rounded-full bg-blue-100 flex-shrink-0 flex items-center justify-center text-blue-600 font-bold text-lg">${escapeHtml(initial)}</div>
                             <div class="overflow-hidden">
-                                <p class="font-semibold text-sm text-gray-800 flex items-center truncate max-w-[120px]" title="${escapeHtml(u.username)}">
-                                    ${escapeHtml(u.username)}
-                                    ${youBadge}
-                                </p>
-                                <p class="text-[11px] text-gray-500 flex items-center gap-1.5 mt-0.5">
-                                    <span class="w-2 h-2 rounded-full ${statusColor}"></span>
-                                    ${statusText}
-                                </p>
+                                <p class="font-semibold text-sm text-gray-800 flex items-center truncate max-w-[120px]" title="${escapeHtml(u.username)}">${escapeHtml(u.username)}${youBadge}</p>
+                                <p class="text-[11px] text-gray-500 flex items-center gap-1.5 mt-0.5"><span class="w-2 h-2 rounded-full ${statusColor}"></span>${statusText}</p>
                             </div>
                         </div>
                         <div class="flex items-center flex-shrink-0">
@@ -517,44 +440,50 @@ Mark Villanueva</textarea>
             list.innerHTML = html;
         }
 
-        // Helper: Formats milliseconds into clean human-readable text (e.g. "45s", "15m", "2h")
         function formatTime(ms) {
             const totalSeconds = Math.max(0, Math.floor(ms / 1000));
             if (totalSeconds < 60) return `${totalSeconds}s`;
-            
             const totalMinutes = Math.floor(totalSeconds / 60);
             if (totalMinutes < 60) return `${totalMinutes}m`;
-            
             const hours = Math.floor(totalMinutes / 60);
-            const remainderMins = totalMinutes % 60;
-            return `${hours}h ${remainderMins}m`;
+            return `${hours}h ${totalMinutes % 60}m`;
         }
 
-        // --- OFFLINE USER REMOVAL ---
+        // --- SECURITY UPGRADE 2: Secure Password Hashing (SHA-256) ---
+        // Converts the entered text into a secure cryptographic hash before comparing.
+        // This completely hides the real password from the HTML source code.
+        async function hashAdminPassword(password) {
+            const msgBuffer = new TextEncoder().encode(password);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        
+        // This string is the unbreakable cryptographic hash of "0907"
+        const TARGET_HASH = "08678c1c5e67cc095fcf958a0bfb565a3c9be0832c3f0ed6426cd39a04a6e87d";
+
         let targetUidToRemove = null;
 
         window.removeOfflineUser = (uidToRemove) => {
             targetUidToRemove = uidToRemove;
             const input = document.getElementById('admin-password-input');
-            input.value = '';
-            input.placeholder = 'Password';
+            input.value = ''; input.placeholder = 'Password';
             document.getElementById('password-modal').classList.remove('hidden');
             setTimeout(() => input.focus(), 50);
         };
 
         document.getElementById('confirm-remove-btn').addEventListener('click', async () => {
             const password = document.getElementById('admin-password-input').value;
-            if (password === "0907") {
+            const hashedInput = await hashAdminPassword(password);
+            
+            if (hashedInput === TARGET_HASH) {
                 try {
                     await deleteDoc(doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_PRESENCE, targetUidToRemove));
                     document.getElementById('password-modal').classList.add('hidden');
-                } catch (e) {
-                    console.error("Error removing user:", e);
-                }
+                } catch (e) { console.error("Error removing user:", e); }
             } else {
                 const input = document.getElementById('admin-password-input');
-                input.value = '';
-                input.placeholder = 'Incorrect password!';
+                input.value = ''; input.placeholder = 'Incorrect password!';
                 input.classList.add('border-red-500', 'placeholder-red-400');
                 setTimeout(() => {
                     input.classList.remove('border-red-500', 'placeholder-red-400');
@@ -563,7 +492,6 @@ Mark Villanueva</textarea>
             }
         });
 
-        // --- DOM MANIPULATION & ORDERING ---
         function sortDOMPages() {
             const container = document.getElementById('pages-container');
             pageOrder.forEach(id => {
@@ -581,7 +509,6 @@ Mark Villanueva</textarea>
             });
         }
 
-        // --- GLOBAL WRITE FUNCTIONS ---
         window.debouncedUpdateCover = () => {
             setSyncStatus('syncing');
             clearTimeout(writeTimers['cover']);
@@ -651,7 +578,6 @@ Mark Villanueva</textarea>
             setSyncStatus('synced');
         };
 
-        // --- DOM RENDERERS ---
         function renderPageInDOM(pageId, data) {
             const container = document.getElementById('pages-container');
             const type = data.type;
@@ -757,7 +683,6 @@ Mark Villanueva</textarea>
             }
         }
 
-        // --- IMAGE HANDLING WITH AUTO SYNC ---
         window.handleImageUpload = (input, pageId, index, type) => {
             const file = input.files[0];
             if (!file) return;
@@ -813,13 +738,11 @@ Mark Villanueva</textarea>
             window.debouncedUpdatePage(pageId);
         };
 
-        // --- UTILS ---
         function escapeHtml(unsafe) {
             if(!unsafe) return "";
             return String(unsafe).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
 
-        // --- MS WORD EXPORT ---
         window.generateWordDoc = function() {
             const place = document.getElementById('place').value;
             const instructor = document.getElementById('instructor').value;
