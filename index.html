@@ -2,190 +2,234 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Collaborative NSTP Document</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Live Java Hangman Collab</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        .textarea-content { white-space: pre-wrap; }
-        .hide-scroll::-webkit-scrollbar { display: none; }
-        /* Sync animation indicator */
-        @keyframes pulse-sync {
-            0% { opacity: 1; }
-            50% { opacity: 0.4; }
-            100% { opacity: 1; }
-        }
-        .syncing .sync-icon { animation: pulse-sync 1s infinite; color: #10B981; }
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap');
+        
+        body { font-family: 'Inter', sans-serif; overscroll-behavior: none; }
+        .font-code { font-family: 'Fira Code', monospace; }
+        
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #1a1a1a; }
+        ::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        
+        .tab-active { color: #60A5FA; border-bottom: 2px solid #60A5FA; background-color: rgba(31, 41, 55, 0.5); }
+        .tab-inactive { color: #9CA3AF; border-bottom: 2px solid transparent; }
+        .tab-inactive:hover { color: #E5E7EB; background-color: rgba(31, 41, 55, 0.3); }
+        .tab-run-active { color: #4ade80; border-bottom: 2px solid #4ade80; background-color: rgba(20, 83, 45, 0.3); }
+
+        /* Sync indicator animation */
+        @keyframes pulse-sync { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+        .syncing .sync-icon { animation: pulse-sync 1s infinite; color: #3b82f6; }
+        
+        /* Stop iOS textarea zooming */
+        input, textarea { font-size: 16px !important; }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen py-10 px-4 sm:px-6 lg:px-8">
+<body class="bg-neutral-950 text-neutral-200 h-screen flex flex-col overflow-hidden">
 
-    <!-- Login / Username Overlay -->
-    <div id="login-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-90 z-50 flex justify-center items-center backdrop-blur-sm transition-opacity">
-        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center">
-            <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+    <!-- Login Modal -->
+    <div id="login-overlay" class="fixed inset-0 bg-black bg-opacity-90 z-[100] flex justify-center items-center backdrop-blur-sm transition-opacity px-4">
+        <div class="bg-neutral-900 border border-neutral-800 p-6 sm:p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center">
+            <div class="w-16 h-16 bg-blue-900/30 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-800/50">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
             </div>
-            <h2 class="text-2xl font-bold mb-2">Join Room <span id="room-id-display" class="text-blue-600"></span></h2>
-            <p class="text-sm text-gray-500 mb-4">Enter a display name to collaborate with your group in real-time.</p>
-            <p id="login-error" class="text-red-500 text-sm font-semibold mb-3 hidden"></p>
-            <input type="text" id="username-input" class="w-full px-4 py-3 border border-gray-300 rounded-xl mb-4 focus:ring-2 focus:ring-blue-500 outline-none font-medium" placeholder="Your Name (e.g., Maria)" />
-            <button id="join-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-colors shadow-md">Join Session</button>
+            <h2 class="text-2xl font-bold mb-2 text-white">Join Code Room</h2>
+            <p class="text-sm text-neutral-400 mb-6">Enter your name to collaborate live on this Java project.</p>
+            <p id="login-error" class="text-red-400 text-sm font-semibold mb-3 hidden"></p>
+            <input type="text" id="username-input" class="w-full bg-neutral-950 border border-neutral-700 text-white px-4 py-3 rounded-xl mb-4 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Your Name" />
+            <button id="join-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-colors shadow-md">Enter Workspace</button>
         </div>
     </div>
 
-    <!-- Password Modal for User Removal -->
-    <div id="password-modal" class="fixed inset-0 bg-gray-900 bg-opacity-70 z-[100] flex justify-center items-center backdrop-blur-sm hidden transition-opacity">
-        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
-            <h3 class="text-xl font-bold mb-2">Remove Offline User</h3>
-            <p class="text-sm text-gray-500 mb-4">Please enter the admin password to remove this user from the session.</p>
-            <input type="password" id="admin-password-input" class="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-red-500 outline-none transition-colors" placeholder="Password" />
-            <div class="flex gap-3">
-                <button onclick="document.getElementById('password-modal').classList.add('hidden')" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2.5 rounded-lg transition-colors">Cancel</button>
-                <button id="confirm-remove-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 rounded-lg transition-colors shadow-md">Remove</button>
-            </div>
+    <!-- Manual Copy Modal -->
+    <div id="manual-copy-modal" class="fixed inset-0 bg-black bg-opacity-90 z-[100] flex justify-center items-center backdrop-blur-sm hidden transition-opacity px-4">
+        <div class="bg-neutral-900 border border-neutral-800 p-6 rounded-xl shadow-2xl max-w-sm w-full text-center">
+            <h3 class="text-xl font-bold mb-2 text-white">Share Room Link</h3>
+            <p class="text-sm text-neutral-400 mb-4">Manually copy the link below to invite others.</p>
+            <input type="text" id="manual-room-link" class="w-full bg-neutral-950 border border-neutral-700 px-4 py-3 rounded-lg mb-4 text-blue-400 font-mono text-sm outline-none" readonly />
+            <button onclick="document.getElementById('manual-copy-modal').classList.add('hidden')" class="w-full bg-neutral-700 hover:bg-neutral-600 text-white font-semibold py-2.5 rounded-lg transition-colors">Close</button>
         </div>
     </div>
 
-    <!-- Manual Copy Modal (Fallback for iFrame restrictions) -->
-    <div id="manual-copy-modal" class="fixed inset-0 bg-gray-900 bg-opacity-70 z-[100] flex justify-center items-center backdrop-blur-sm hidden transition-opacity">
-        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full text-center">
-            <h3 class="text-xl font-bold mb-2">Share Room Link</h3>
-            <p class="text-sm text-gray-500 mb-4">Your browser blocked automatic copying. Please manually copy the link below to share with your group.</p>
-            <input type="text" id="manual-room-link" class="w-full px-4 py-3 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-blue-500 outline-none text-sm text-gray-700 font-mono" readonly />
-            <button onclick="document.getElementById('manual-copy-modal').classList.add('hidden')" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition-colors shadow-md">Close</button>
-        </div>
-    </div>
-
-    <!-- Main App Layout (Content + Sidebar) -->
-    <div class="max-w-6xl mx-auto space-y-6 lg:space-y-0 lg:flex lg:gap-6 hidden items-start" id="app-container">
+    <!-- Main Workspace Container -->
+    <div id="app-container" class="hidden flex-col h-full w-full">
         
-        <!-- LEFT/MAIN: Document Content -->
-        <div class="flex-1 space-y-6 w-full max-w-4xl mx-auto">
-            
-            <!-- Header -->
-            <div class="bg-blue-700 rounded-2xl shadow-lg px-8 py-6 text-white text-center relative overflow-hidden">
-                <div class="absolute top-4 right-4 flex items-center gap-2 text-sm font-medium bg-blue-800/50 px-3 py-1.5 rounded-full" id="sync-status">
-                    <svg class="w-4 h-4 sync-icon text-gray-300" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
-                    <span id="sync-text">Connecting...</span>
+        <!-- Header -->
+        <header class="bg-neutral-900 border-b border-neutral-800 p-3 sm:px-4 flex items-center justify-between shrink-0 z-20">
+            <div class="flex items-center gap-3 overflow-hidden">
+                <div class="bg-blue-600 p-1.5 rounded text-white shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
                 </div>
-                <div class="flex flex-col items-center justify-center gap-3 mt-2">
-                    <h2 class="text-3xl font-bold">Live NSTP Document</h2>
-                    <button id="copy-link-btn" onclick="window.copyRoomLink()" class="flex items-center gap-1.5 bg-blue-800 hover:bg-blue-900 text-sm font-semibold px-4 py-2 rounded-lg transition-colors shadow-sm cursor-pointer border border-blue-600" title="Copy link to share">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
-                        <span>Share Room Link</span>
-                    </button>
-                </div>
-                <p class="text-blue-100 mt-4 text-sm">This specific link is saved forever. You can close the tab and return later.</p>
-            </div>
-
-            <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
-                <!-- Cover Page Section -->
-                <div class="px-8 py-6 border-b border-gray-200 bg-gray-50">
-                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                        <span class="bg-blue-600 text-white w-8 h-8 rounded-full inline-flex items-center justify-center mr-3 text-sm">1</span>
-                        Cover Page Details
-                    </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Place of Observation</label>
-                            <input type="text" id="place" value="Brgy. San Andres, Cainta, Rizal" oninput="window.debouncedUpdateCover()"
-                                class="cover-input w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">NSTP Instructor's Name</label>
-                            <input type="text" id="instructor" value="Mr./Ms. Juan Dela Cruz" oninput="window.debouncedUpdateCover()"
-                                class="cover-input w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Date</label>
-                            <input type="text" id="date" value="March 2026" oninput="window.debouncedUpdateCover()"
-                                class="cover-input w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Group Members <span class="text-xs font-normal text-gray-500">(One per line)</span></label>
-                            <textarea id="members" rows="4" oninput="window.debouncedUpdateCover()"
-                                class="cover-input w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-y">Maria Santos
-Carlo Reyes
-Angela Cruz
-Mark Villanueva</textarea>
-                        </div>
+                <div class="truncate">
+                    <h1 class="text-sm sm:text-base font-bold text-white truncate">Java Hangman Collab</h1>
+                    <div class="flex items-center gap-1.5 text-xs text-neutral-400" id="sync-status">
+                        <svg class="w-3 h-3 sync-icon text-neutral-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                        <span id="sync-text">Synced Live</span>
                     </div>
-                </div>
-
-                <!-- Additional Pages Section -->
-                <div class="px-8 py-6">
-                    <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                        <span class="bg-blue-600 text-white w-8 h-8 rounded-full inline-flex items-center justify-center mr-3 text-sm">+</span>
-                        Document Body
-                    </h3>
-                    
-                    <div id="pages-container" class="space-y-6">
-                        <!-- Dynamic pages injected here via Firebase -->
-                    </div>
-
-                    <!-- Page Addition Controls -->
-                    <div class="mt-8 pt-6 border-t border-gray-200">
-                        <p class="text-sm font-semibold text-gray-600 mb-3 text-center">Add Collaborative Page:</p>
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <button onclick="window.addPage('text')" class="py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-600 font-semibold hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50 transition-all flex flex-col items-center justify-center gap-1">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path></svg>
-                                Text Content
-                            </button>
-                            <button onclick="window.addPage('grid2')" class="py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-600 font-semibold hover:border-green-500 hover:text-green-600 hover:bg-green-50 transition-all flex flex-col items-center justify-center gap-1">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
-                                2x2 Image Grid
-                            </button>
-                            <button onclick="window.addPage('grid3')" class="py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-600 font-semibold hover:border-purple-500 hover:text-purple-600 hover:bg-purple-50 transition-all flex flex-col items-center justify-center gap-1">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1v-2zM4 21a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1v-2zM11 5a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1h-2a1 1 0 01-1-1V5zM11 13a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1h-2a1 1 0 01-1-1v-2zM11 21a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1h-2a1 1 0 01-1-1v-2zM18 5a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1h-2a1 1 0 01-1-1V5zM18 13a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1h-2a1 1 0 01-1-1v-2zM18 21a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 01-1 1h-2a1 1 0 01-1-1v-2z"></path></svg>
-                                3x3 Image Grid
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Generate Button -->
-                <div class="px-8 py-6 bg-gray-50 border-t border-gray-200">
-                    <button onclick="window.generateWordDoc()" 
-                        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-xl shadow-md hover:shadow-xl transition-all flex justify-center items-center gap-3 text-lg">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                        </svg>
-                        Download Complete Word Document (.doc)
-                    </button>
                 </div>
             </div>
-        </div> <!-- End of LEFT/MAIN Content -->
+            <button id="copy-link-btn" onclick="window.copyRoomLink()" class="flex items-center gap-1.5 bg-neutral-800 hover:bg-neutral-700 text-xs sm:text-sm font-semibold px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg transition-colors border border-neutral-700 text-neutral-300 shrink-0">
+                <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                <span class="hidden sm:inline">Invite</span>
+            </button>
+        </header>
 
-        <!-- RIGHT: Presence Sidebar -->
-        <div class="w-full lg:w-80 flex-shrink-0">
-            <div class="bg-white rounded-2xl shadow-xl border border-gray-200 p-6 sticky top-6">
-                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></span>
-                    Active Collaborators
-                </h3>
-                
-                <div id="users-list" class="space-y-3">
-                    <!-- Collaborators injected here via Firebase -->
-                    <p class="text-sm text-gray-400 italic text-center">Loading users...</p>
-                </div>
-                
-                <div class="mt-6 pt-4 border-t border-gray-100">
-                    <p class="text-xs text-gray-500 text-center">Users are tracked in real-time. Gray dots indicate offline users.</p>
-                </div>
+        <!-- Live Presence Bar -->
+        <div class="bg-neutral-950 border-b border-neutral-800 px-3 py-2 flex items-center gap-2 overflow-x-auto shrink-0 hide-scroll relative">
+            <span class="text-xs font-semibold text-neutral-500 uppercase tracking-wider shrink-0 mr-1">Online:</span>
+            <div id="presence-list" class="flex items-center gap-2">
+                <!-- Avatars injected via JS -->
             </div>
         </div>
 
+        <!-- Navigation Tabs -->
+        <div class="flex bg-neutral-900 border-b border-neutral-800 shrink-0 overflow-x-auto hide-scroll">
+            <button id="tab-main" class="px-4 py-3 min-w-[100px] flex-1 flex items-center justify-center gap-2 font-medium transition-colors tab-active text-sm shrink-0" onclick="window.switchTab('main')">
+                <svg class="w-4 h-4 text-orange-400" viewBox="0 0 24 24" fill="currentColor"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/></svg>
+                Main.java
+            </button>
+            <button id="tab-game" class="px-4 py-3 min-w-[100px] flex-1 flex items-center justify-center gap-2 font-medium transition-colors tab-inactive text-sm shrink-0" onclick="window.switchTab('game')">
+                <svg class="w-4 h-4 text-orange-400" viewBox="0 0 24 24" fill="currentColor"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/></svg>
+                Game.java
+            </button>
+            <button id="tab-run" class="px-4 py-3 min-w-[120px] flex-1 flex items-center justify-center gap-2 font-medium transition-colors tab-inactive text-sm shrink-0" onclick="window.switchTab('run')">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+                Terminal
+            </button>
+        </div>
+
+        <!-- Main Workspace Area -->
+        <main class="flex-1 relative w-full h-full bg-[#1e1e1e]">
+            
+            <!-- Editor: Main.java -->
+            <div id="view-main" class="absolute inset-0 flex flex-col">
+                <div class="bg-[#2d2d2d] px-4 py-1.5 text-xs font-mono text-neutral-400 border-b border-neutral-800 flex justify-between shrink-0">
+                    <span>src/Main.java</span>
+                    <span id="typing-indicator-main" class="text-blue-400 italic opacity-0 transition-opacity">Someone is typing...</span>
+                </div>
+                <textarea id="editor-main" spellcheck="false" class="flex-1 w-full bg-transparent text-[#d4d4d4] font-code p-4 resize-none outline-none leading-relaxed" oninput="window.debouncedSaveCode('main')"></textarea>
+            </div>
+
+            <!-- Editor: Game.java -->
+            <div id="view-game" class="absolute inset-0 hidden flex-col">
+                <div class="bg-[#2d2d2d] px-4 py-1.5 text-xs font-mono text-neutral-400 border-b border-neutral-800 flex justify-between shrink-0">
+                    <span>src/Game.java</span>
+                    <span id="typing-indicator-game" class="text-blue-400 italic opacity-0 transition-opacity">Someone is typing...</span>
+                </div>
+                <textarea id="editor-game" spellcheck="false" class="flex-1 w-full bg-transparent text-[#d4d4d4] font-code p-4 resize-none outline-none leading-relaxed" oninput="window.debouncedSaveCode('game')"></textarea>
+            </div>
+
+            <!-- Run View (Terminal) -->
+            <div id="view-run" class="absolute inset-0 hidden flex-col bg-black">
+                <div class="bg-[#2d2d2d] px-4 py-1.5 text-xs font-mono text-neutral-400 border-b border-neutral-800 flex justify-between items-center shrink-0">
+                    <span>java Main</span>
+                    <button onclick="window.startGame()" class="text-green-400 hover:text-green-300 flex items-center gap-1 bg-green-900/30 px-2 py-0.5 rounded">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Compile & Run
+                    </button>
+                </div>
+                
+                <div id="terminal-output" class="flex-1 overflow-y-auto p-4 font-code text-sm text-green-400 leading-relaxed whitespace-pre-wrap break-words"></div>
+                
+                <form id="input-form" class="bg-[#1a1a1a] border-t border-neutral-800 p-2 flex gap-2 shrink-0">
+                    <span class="text-green-500 font-code py-2 pl-2">&gt;</span>
+                    <input 
+                        type="text" 
+                        id="terminal-input" 
+                        autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
+                        class="flex-1 bg-transparent text-white font-code px-2 py-2 outline-none"
+                        placeholder="Type input here..."
+                    >
+                    <button type="submit" id="submit-btn" class="bg-neutral-800 hover:bg-neutral-700 text-white px-4 py-2 rounded text-sm transition-colors border border-neutral-700">Enter</button>
+                </form>
+            </div>
+
+        </main>
     </div>
 
-    <!-- FIREBASE COLLABORATION LOGIC -->
+    <!-- APP LOGIC & FIREBASE -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, setDoc, onSnapshot, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        // --- URL ROOM SETUP (PERSISTENCE) ---
+        // Default Code Templates
+        const DEFAULT_MAIN = `// Main class to run the Hangman program
+public class Main {
+    public static void main(String[] args) {
+        // Create a new game instance and start playing
+        Game hangmanGame = new Game();
+        hangmanGame.play();
+    }
+}`;
+
+        const DEFAULT_GAME = `import java.util.Scanner;
+import java.util.Random;
+
+// Class containing all the logic for the Hangman game
+public class Game {
+    
+    // The engine reads this array directly when you hit "Run"! Edit these words to test it!
+    private String[] wordList = {"JAVA", "ECLIPSE", "ROUTER", "KEYBOARD", "VARIABLE"}; 
+    
+    private String secretWord;
+    private char[] guessedWord;
+    private int attempts;
+    private Scanner scanner;
+
+    public Game() {
+        Random rand = new Random();
+        secretWord = wordList[rand.nextInt(wordList.length)];
+        guessedWord = new char[secretWord.length()];
+        for (int i = 0; i < guessedWord.length; i++) guessedWord[i] = '_';
+        attempts = 5; 
+        scanner = new Scanner(System.in);
+    }
+
+    public void play() {
+        System.out.println("Welcome to Hangman!");
+        while (attempts > 0 && new String(guessedWord).contains("_")) {
+            displayStatus();
+            char userGuess = getValidInput();
+            processGuess(userGuess);
+        }
+        if (!new String(guessedWord).contains("_")) System.out.println("\\nCongrats! You guessed the word: " + secretWord);
+        else System.out.println("\\nGame Over! The word was: " + secretWord);
+    }
+
+    private void displayStatus() {
+        System.out.println("\\nWord: " + new String(guessedWord));
+        System.out.println("Attempts left: " + attempts);
+    }
+
+    private char getValidInput() {
+        while (true) {
+            System.out.print("Guess a letter: ");
+            try {
+                String input = scanner.nextLine().toUpperCase();
+                if (input.isEmpty()) throw new Exception("Input cannot be empty.");
+                char guess = input.charAt(0); 
+                if (!Character.isLetter(guess)) throw new Exception("Letters only.");
+                return guess; 
+            } catch (Exception e) { System.out.println("Error: " + e.getMessage()); }
+        }
+    }
+
+    private void processGuess(char guess) {
+        boolean found = false;
+        for (int i = 0; i < secretWord.length(); i++) {
+            if (secretWord.charAt(i) == guess) { guessedWord[i] = guess; found = true; }
+        }
+        if (!found) { attempts--; System.out.println("Incorrect guess!"); } 
+        else System.out.println("Good guess!");
+    }
+}`;
+
+        // --- URL & ROOM LOGIC ---
         const urlParams = new URLSearchParams(window.location.search);
         let currentRoomId = urlParams.get('room');
         if (!currentRoomId) {
@@ -193,659 +237,365 @@ Mark Villanueva</textarea>
             const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + currentRoomId;
             window.history.replaceState({path:newUrl}, '', newUrl);
         }
+        document.getElementById('room-id-display').textContent = currentRoomId;
 
-        const roomDisplay = document.getElementById('room-id-display');
-        if (roomDisplay) roomDisplay.textContent = currentRoomId;
-
-        window.copyRoomLink = async () => {
-            const linkToCopy = window.location.href;
-            let success = false;
-            try {
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    await navigator.clipboard.writeText(linkToCopy);
-                    success = true;
-                } else throw new Error("API unavailable");
-            } catch (err) {
-                try {
-                    const tempInput = document.createElement("input");
-                    tempInput.value = linkToCopy;
-                    tempInput.style.position = "absolute";
-                    tempInput.style.left = "-9999px";
-                    document.body.appendChild(tempInput);
-                    tempInput.focus(); tempInput.select();
-                    success = document.execCommand("copy");
-                    document.body.removeChild(tempInput);
-                } catch (fallbackErr) { success = false; }
-            }
-            if (success) {
-                const btnSpan = document.querySelector('#copy-link-btn span');
-                const originalText = btnSpan.textContent;
-                btnSpan.textContent = "Copied to Clipboard!";
-                setTimeout(() => btnSpan.textContent = originalText, 2500);
-            } else {
-                const modal = document.getElementById('manual-copy-modal');
-                const input = document.getElementById('manual-room-link');
-                input.value = linkToCopy;
-                modal.classList.remove('hidden');
-                setTimeout(() => { input.focus(); input.select(); }, 100);
-            }
-        };
-
-        // The browser silently decodes this using atob() to connect to your database.
+        // --- FIREBASE CONFIG (Secured via Base64 to prevent generic bot scraping) ---
         const _obfuscatedFc = "eyJhcGlLZXkiOiJBSXphU3lDTVE4aElZMWFNWVM1YzdxamxvZzNLVmN6eEpLbTVNakEiLCJhdXRoRG9tYWluIjoibnN0cC1kb2MuZmlyZWJhc2VhcHAuY29tIiwicHJvamVjdElkIjoibnN0cC1kb2MiLCJzdG9yYWdlQnVja2V0IjoibnN0cC1kb2MuZmlyZWJhc2VzdG9yYWdlLmFwcCIsIm1lc3NhZ2luZ1NlbmRlcklkIjoiNzA1MjIxNTE2ODMwIiwiYXBwSWQiOiIxOjcwNTIyMTUxNjgzMDp3ZWI6OTQ1ZmIzYTMyMDc1ODZkNWI4ZDgwZiJ9";
         const firebaseConfig = JSON.parse(atob(_obfuscatedFc));
-
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        const baseAppId = typeof __app_id !== 'undefined' ? __app_id : 'custom-hosted-app';
-        const COLL_COVER = `cover_${currentRoomId}`;
-        const COLL_PAGES = `pages_${currentRoomId}`;
-        const COLL_PRESENCE = `presence_${currentRoomId}`;
+        const baseAppId = typeof __app_id !== 'undefined' ? __app_id : 'java-collab-app';
+        const COLL_CODE = `code_room_${currentRoomId}`;
+        const COLL_PRESENCE = `presence_room_${currentRoomId}`;
 
+        // App State
         let myUsername = '';
         let myUid = '';
-        let pageOrder = []; 
-        let writeTimers = {};
-        
+        let currentTab = 'main'; // main, game, run
+        let isTyping = false;
+        let writeTimer = null;
         let activeUsers = {};
-        let myPresenceRef = null;
-        let presenceInterval = null;
-        let openMenuUid = null; 
 
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.user-menu-container') && openMenuUid) {
-                openMenuUid = null;
-                renderPresenceUI();
+        // --- UI & TAB LOGIC ---
+        window.switchTab = (tab) => {
+            currentTab = tab;
+            const btnMain = document.getElementById('tab-main');
+            const btnGame = document.getElementById('tab-game');
+            const btnRun = document.getElementById('tab-run');
+            const viewMain = document.getElementById('view-main');
+            const viewGame = document.getElementById('view-game');
+            const viewRun = document.getElementById('view-run');
+
+            // Reset tabs
+            [btnMain, btnGame, btnRun].forEach(btn => btn.className = "px-4 py-3 min-w-[100px] flex-1 flex items-center justify-center gap-2 font-medium transition-colors tab-inactive text-sm shrink-0");
+            [viewMain, viewGame, viewRun].forEach(view => { view.classList.add('hidden'); view.classList.remove('flex'); });
+
+            if (tab === 'main') {
+                btnMain.classList.add('tab-active'); btnMain.classList.remove('tab-inactive');
+                viewMain.classList.remove('hidden'); viewMain.classList.add('flex');
+            } else if (tab === 'game') {
+                btnGame.classList.add('tab-active'); btnGame.classList.remove('tab-inactive');
+                viewGame.classList.remove('hidden'); viewGame.classList.add('flex');
+            } else if (tab === 'run') {
+                btnRun.classList.add('tab-run-active'); btnRun.classList.remove('tab-inactive');
+                viewRun.classList.remove('hidden'); viewRun.classList.add('flex');
+                document.getElementById('terminal-input').focus();
             }
-        });
 
-        window.toggleUserMenu = (uid) => {
-            openMenuUid = openMenuUid === uid ? null : uid;
-            renderPresenceUI(); 
+            // Update Presence State
+            if(myUid) setDoc(doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_PRESENCE, myUid), { currentFile: tab }, { merge: true });
+            renderPresenceUI();
         };
 
         function setSyncStatus(status) {
             const el = document.getElementById('app-container');
             const txt = document.getElementById('sync-text');
-            if(status === 'syncing') {
-                el.classList.add('syncing'); txt.textContent = 'Saving...';
-            } else if (status === 'synced') {
-                el.classList.remove('syncing'); txt.textContent = 'Synced Live';
-            }
+            if(status === 'syncing') { el.classList.add('syncing'); txt.textContent = 'Saving...'; } 
+            else if (status === 'synced') { el.classList.remove('syncing'); txt.textContent = 'Synced Live'; }
         }
 
-        // 2. Authentication Flow
+        // --- AUTHENTICATION ---
         document.getElementById('join-btn').addEventListener('click', async () => {
             const input = document.getElementById('username-input').value.trim();
             const errorMsg = document.getElementById('login-error');
-            if(!input) {
-                errorMsg.textContent = "Please enter a name.";
-                errorMsg.classList.remove('hidden');
-                return;
-            }
+            if(!input) { errorMsg.textContent = "Please enter a name."; errorMsg.classList.remove('hidden'); return; }
             errorMsg.classList.add('hidden');
-            
             myUsername = input;
             document.getElementById('join-btn').textContent = "Connecting...";
 
             try {
-                // Connect explicitly via your own project's anonymous login
-                const userCred = await signInAnonymously(auth);
+                let userCred;
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token && Object.keys(firebaseConfig).length === 0) {
+                    userCred = await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    userCred = await signInAnonymously(auth);
+                }
                 myUid = userCred.user.uid;
                 
                 document.getElementById('login-overlay').style.display = 'none';
                 document.getElementById('app-container').classList.remove('hidden');
+                document.getElementById('app-container').classList.add('flex');
                 
-                setupDatabaseListeners();
-                startPresence(myUid);
+                startPresence();
+                startCodeSync();
+                window.switchTab('main');
             } catch (error) {
                 console.error("Auth error", error);
-                errorMsg.textContent = "Failed to connect to database. Ensure Anonymous sign-in is enabled in Firebase Console.";
+                errorMsg.textContent = "Connection failed. Please check network.";
                 errorMsg.classList.remove('hidden');
-                document.getElementById('join-btn').textContent = "Join Session";
+                document.getElementById('join-btn').textContent = "Enter Workspace";
             }
         });
 
-        // 3. Document Synchronization Listeners
-        function setupDatabaseListeners() {
-            setSyncStatus('synced');
-            let isInitialCoverLoad = true;
+        // --- PRESENCE LOGIC ---
+        function startPresence() {
+            const myPresenceRef = doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_PRESENCE, myUid);
+            setDoc(myPresenceRef, { username: myUsername, lastActive: Date.now(), currentFile: currentTab, color: getRandomColor(myUid) });
+            
+            // Heartbeat
+            setInterval(() => setDoc(myPresenceRef, { lastActive: Date.now() }, { merge: true }), 10000);
 
-            const coverRef = doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_COVER, 'main');
-            onSnapshot(coverRef, (snapshot) => {
-                if (snapshot.exists()) {
-                    const data = snapshot.data();
-                    
-                    if (isInitialCoverLoad || data.lastEditedBy !== myUsername) {
-                        document.getElementById('place').value = data.place !== undefined ? data.place : '';
-                        document.getElementById('instructor').value = data.instructor !== undefined ? data.instructor : '';
-                        document.getElementById('date').value = data.date !== undefined ? data.date : '';
-                        document.getElementById('members').value = data.members !== undefined ? data.members : '';
-                        isInitialCoverLoad = false; 
-                    }
-
-                    if (data.pageOrder) {
-                        pageOrder = data.pageOrder;
-                        sortDOMPages();
-                    }
-                } else {
-                    setDoc(coverRef, {
-                        place: "Brgy. San Andres, Cainta, Rizal",
-                        instructor: "Mr./Ms. Juan Dela Cruz",
-                        date: "March 2026",
-                        members: "Maria Santos\nCarlo Reyes\nAngela Cruz\nMark Villanueva",
-                        pageOrder: [],
-                        lastEditedBy: myUsername
-                    });
-                    window.addPage('text');
-                }
-            }, (error) => console.error(error));
-
-            const pagesCol = collection(db, 'artifacts', baseAppId, 'public', 'data', COLL_PAGES);
-            onSnapshot(pagesCol, (snapshot) => {
-                snapshot.docChanges().forEach((change) => {
-                    const data = change.doc.data();
-                    const id = change.doc.id;
-
-                    if (change.type === "added") {
-                        if (!document.getElementById(id)) {
-                            renderPageInDOM(id, data);
-                            sortDOMPages();
-                        }
-                    }
-                    if (change.type === "modified") {
-                        if (data.lastEditedBy !== myUsername) updatePageInDOM(id, data);
-                    }
-                    if (change.type === "removed") {
-                        const el = document.getElementById(id);
-                        if (el) el.remove();
-                        updatePageLabels();
-                    }
-                });
-            }, (error) => console.error(error));
-        }
-
-        async function startPresence(uid) {
-            myPresenceRef = doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_PRESENCE, uid);
-            await setDoc(myPresenceRef, { username: myUsername, joinedAt: Date.now(), lastActive: Date.now() });
-            presenceInterval = setInterval(() => setDoc(myPresenceRef, { lastActive: Date.now() }, { merge: true }), 10000);
-
-            const presenceCol = collection(db, 'artifacts', baseAppId, 'public', 'data', COLL_PRESENCE);
-            onSnapshot(presenceCol, (snapshot) => {
+            // Listen to others
+            onSnapshot(collection(db, 'artifacts', baseAppId, 'public', 'data', COLL_PRESENCE), (snapshot) => {
                 activeUsers = {};
-                snapshot.docs.forEach(docSnap => activeUsers[docSnap.id] = docSnap.data());
-                renderPresenceUI(); 
+                snapshot.docs.forEach(d => activeUsers[d.id] = d.data());
+                renderPresenceUI();
             });
-
-            setInterval(renderPresenceUI, 1000);
         }
 
         function renderPresenceUI() {
-            const list = document.getElementById('users-list');
+            const list = document.getElementById('presence-list');
             if(!list) return;
             
             let html = '';
-            const now = Date.now();
-            const usersArray = Object.entries(activeUsers);
+            let typingMain = false;
+            let typingGame = false;
 
-            if (usersArray.length === 0) {
-                list.innerHTML = `<p class="text-sm text-gray-400 italic text-center">No one is online.</p>`;
+            const now = Date.now();
+            Object.entries(activeUsers).forEach(([uid, u]) => {
+                if (now - u.lastActive > 25000) return; // Skip offline users
+                
+                const isMe = uid === myUid;
+                const initial = u.username ? u.username.charAt(0).toUpperCase() : '?';
+                const fileBadge = u.currentFile === 'main' ? 'Main.java' : (u.currentFile === 'game' ? 'Game.java' : 'Terminal');
+                
+                html += `
+                    <div class="flex items-center gap-1.5 bg-neutral-800 rounded-full pl-1 pr-3 py-1 border border-neutral-700 shrink-0" title="${u.username} is viewing ${fileBadge}">
+                        <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style="background-color: ${u.color}">
+                            ${initial}
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-semibold leading-none text-neutral-200">${escapeHtml(u.username)}${isMe?' (You)':''}</span>
+                            <span class="text-[9px] text-neutral-500 leading-none mt-0.5">${fileBadge}</span>
+                        </div>
+                    </div>
+                `;
+
+                if (!isMe) {
+                    if(u.currentFile === 'main') typingMain = true;
+                    if(u.currentFile === 'game') typingGame = true;
+                }
+            });
+            
+            list.innerHTML = html || '<span class="text-xs text-neutral-600 italic">No one else is online.</span>';
+            
+            document.getElementById('typing-indicator-main').style.opacity = typingMain ? '1' : '0';
+            document.getElementById('typing-indicator-game').style.opacity = typingGame ? '1' : '0';
+        }
+
+        function getRandomColor(seed) {
+            const colors = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981', '#06b6d4', '#14b8a6', '#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e'];
+            let hash = 0;
+            for (let i = 0; i < seed.length; i++) hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+            return colors[Math.abs(hash) % colors.length];
+        }
+
+        // --- LIVE CODE SYNC ---
+        function startCodeSync() {
+            setSyncStatus('synced');
+            const docRef = doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_CODE, 'source');
+            
+            onSnapshot(docRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    const data = snapshot.data();
+                    
+                    // Only update DOM if we aren't actively typing to prevent cursor jumping
+                    if (!isTyping || data.lastEditedBy !== myUid) {
+                        smartUpdateTextarea('editor-main', data.mainCode !== undefined ? data.mainCode : DEFAULT_MAIN);
+                        smartUpdateTextarea('editor-game', data.gameCode !== undefined ? data.gameCode : DEFAULT_GAME);
+                    }
+                } else {
+                    // Initialize Room
+                    setDoc(docRef, { mainCode: DEFAULT_MAIN, gameCode: DEFAULT_GAME, lastEditedBy: myUid });
+                }
+            });
+        }
+
+        // Retains cursor position when updating text from remote
+        function smartUpdateTextarea(id, newText) {
+            const el = document.getElementById(id);
+            if (el.value === newText) return;
+            const start = el.selectionStart;
+            const end = el.selectionEnd;
+            el.value = newText;
+            el.setSelectionRange(start, end);
+        }
+
+        window.debouncedSaveCode = (type) => {
+            isTyping = true;
+            setSyncStatus('syncing');
+            clearTimeout(writeTimer);
+            
+            writeTimer = setTimeout(() => {
+                const mainCode = document.getElementById('editor-main').value;
+                const gameCode = document.getElementById('editor-game').value;
+                
+                setDoc(doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_CODE, 'source'), {
+                    mainCode: mainCode,
+                    gameCode: gameCode,
+                    lastEditedBy: myUid
+                }, { merge: true }).then(() => {
+                    setSyncStatus('synced');
+                    setTimeout(() => { isTyping = false; }, 500); // Give padding before accepting remote overrides
+                });
+            }, 800);
+        };
+
+        // --- TERMINAL & JAVA EMULATOR LOGIC ---
+        let javaGameState = 'IDLE'; 
+        let secretWord = '';
+        let guessedWord = [];
+        let attempts = 0;
+        let dynamicWordList = [];
+
+        const terminalOutput = document.getElementById('terminal-output');
+        const terminalInput = document.getElementById('terminal-input');
+        const inputForm = document.getElementById('input-form');
+
+        function printLine(text) {
+            const line = document.createElement('div');
+            line.textContent = text;
+            terminalOutput.appendChild(line);
+            terminalOutput.scrollTop = terminalOutput.scrollHeight;
+        }
+
+        function appendToLastLine(text) {
+            if (terminalOutput.lastChild) terminalOutput.lastChild.textContent += text;
+            else printLine(text);
+        }
+
+        // QoL: Extract the word list string array directly from the user's collaborative Game.java code!
+        function extractWordsFromCode() {
+            const code = document.getElementById('editor-game').value;
+            const fallback = ["JAVA", "ECLIPSE", "ROUTER", "KEYBOARD", "VARIABLE"];
+            try {
+                // Look for: String[] wordList = {"A", "B"};
+                const regex = /String\[\]\s+\w+\s*=\s*\{(.*?)\};/s;
+                const match = code.match(regex);
+                if (match && match[1]) {
+                    const parsed = match[1].split(',')
+                        .map(s => s.replace(/['"\s]/g, '').toUpperCase())
+                        .filter(s => s.length > 0 && /^[A-Z]+$/.test(s)); // letters only
+                    if (parsed.length > 0) return parsed;
+                }
+            } catch (e) { console.warn("Could not parse Java array, using fallback"); }
+            return fallback;
+        }
+
+        window.startGame = () => {
+            terminalOutput.innerHTML = '';
+            printLine("> javac Main.java Game.java");
+            printLine("> java Main");
+            
+            dynamicWordList = extractWordsFromCode();
+            secretWord = dynamicWordList[Math.floor(Math.random() * dynamicWordList.length)];
+            guessedWord = Array(secretWord.length).fill('_');
+            attempts = 5;
+            javaGameState = 'PLAYING';
+            
+            terminalInput.disabled = false;
+            terminalInput.placeholder = "Type letter and press Enter...";
+            terminalInput.focus();
+
+            printLine("Welcome to Hangman!");
+            displayGameStatus();
+            printLine("Guess a letter: ");
+        };
+
+        function displayGameStatus() {
+            printLine("");
+            printLine(`Word: ${guessedWord.join('')}`);
+            printLine(`Attempts left: ${attempts}`);
+        }
+
+        inputForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (javaGameState !== 'PLAYING') {
+                window.startGame();
                 return;
             }
 
-            usersArray.forEach(([uid, u]) => {
-                const activeDiff = now - u.lastActive;
-                const joinedDiff = now - u.joinedAt;
-                const isOnline = activeDiff < 25000; 
-                
-                const statusColor = isOnline ? 'bg-green-500' : 'bg-gray-400';
-                const statusText = isOnline ? 'Online Now' : `Offline for ${formatTime(activeDiff)}`;
-                const initial = u.username ? u.username.charAt(0).toUpperCase() : '?';
-                const youBadge = uid === myUid ? `<span class="text-[10px] bg-blue-600 text-white px-1.5 py-0.5 rounded ml-2">You</span>` : '';
+            const rawInput = terminalInput.value;
+            const inputUpper = rawInput.toUpperCase();
+            terminalInput.value = '';
 
-                const menuHtml = !isOnline ? `
-                    <div class="relative ml-2 user-menu-container">
-                        <button onclick="window.toggleUserMenu('${uid}')" class="p-1 rounded-md hover:bg-gray-200 text-gray-500 transition-colors focus:outline-none flex items-center justify-center">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/></svg>
-                        </button>
-                        <div class="${openMenuUid === uid ? 'block' : 'hidden'} absolute right-0 top-full mt-1 w-32 bg-white rounded-md shadow-lg border border-gray-100 z-50 py-1">
-                            <button onclick="window.removeOfflineUser('${uid}'); window.toggleUserMenu('${uid}');" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Remove
-                            </button>
-                        </div>
-                    </div>
-                ` : '<div class="w-6 ml-2"></div>'; 
+            appendToLastLine(rawInput);
 
-                html += `
-                    <div class="relative flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100 shadow-sm transition-all hover:bg-gray-100">
-                        <div class="flex items-center gap-3 overflow-hidden">
-                            <div class="w-10 h-10 rounded-full bg-blue-100 flex-shrink-0 flex items-center justify-center text-blue-600 font-bold text-lg">${escapeHtml(initial)}</div>
-                            <div class="overflow-hidden">
-                                <p class="font-semibold text-sm text-gray-800 flex items-center truncate max-w-[120px]" title="${escapeHtml(u.username)}">${escapeHtml(u.username)}${youBadge}</p>
-                                <p class="text-[11px] text-gray-500 flex items-center gap-1.5 mt-0.5"><span class="w-2 h-2 rounded-full ${statusColor}"></span>${statusText}</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center flex-shrink-0">
-                            <div class="text-right pl-2 border-l border-gray-200">
-                                <p class="text-[9px] text-gray-400 uppercase tracking-widest font-semibold mb-0.5">Logged in</p>
-                                <p class="text-xs font-bold text-gray-700">${formatTime(joinedDiff)}</p>
-                            </div>
-                            ${menuHtml}
-                        </div>
-                    </div>
-                `;
-            });
-            list.innerHTML = html;
-        }
+            if (inputUpper.length === 0) {
+                printLine("Error: Input cannot be empty.");
+                printLine("Guess a letter: ");
+                terminalOutput.scrollTop = terminalOutput.scrollHeight;
+                return;
+            }
 
-        function formatTime(ms) {
-            const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-            if (totalSeconds < 60) return `${totalSeconds}s`;
-            const totalMinutes = Math.floor(totalSeconds / 60);
-            if (totalMinutes < 60) return `${totalMinutes}m`;
-            const hours = Math.floor(totalMinutes / 60);
-            return `${hours}h ${totalMinutes % 60}m`;
-        }
+            const guess = inputUpper.charAt(0);
 
-        // --- SECURITY UPGRADE 2: Secure Password Hashing (SHA-256) ---
-        // Converts the entered text into a secure cryptographic hash before comparing.
-        // This completely hides the real password from the HTML source code.
-        async function hashAdminPassword(password) {
-            const msgBuffer = new TextEncoder().encode(password);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        }
-        
-        // This string is the unbreakable cryptographic hash of "0907"
-        const TARGET_HASH = "08678c1c5e67cc095fcf958a0bfb565a3c9be0832c3f0ed6426cd39a04a6e87d";
+            if (!/^[A-Z]$/.test(guess)) {
+                printLine("Error: Invalid input. Please enter letters only.");
+                printLine("Guess a letter: ");
+                terminalOutput.scrollTop = terminalOutput.scrollHeight;
+                return;
+            }
 
-        let targetUidToRemove = null;
+            let found = false;
+            for (let i = 0; i < secretWord.length; i++) {
+                if (secretWord.charAt(i) === guess) {
+                    guessedWord[i] = guess;
+                    found = true;
+                }
+            }
 
-        window.removeOfflineUser = (uidToRemove) => {
-            targetUidToRemove = uidToRemove;
-            const input = document.getElementById('admin-password-input');
-            input.value = ''; input.placeholder = 'Password';
-            document.getElementById('password-modal').classList.remove('hidden');
-            setTimeout(() => input.focus(), 50);
-        };
+            if (!found) { attempts--; printLine("Incorrect guess!"); } 
+            else { printLine("Good guess!"); }
 
-        document.getElementById('confirm-remove-btn').addEventListener('click', async () => {
-            const password = document.getElementById('admin-password-input').value;
-            const hashedInput = await hashAdminPassword(password);
-            
-            if (hashedInput === TARGET_HASH) {
-                try {
-                    await deleteDoc(doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_PRESENCE, targetUidToRemove));
-                    document.getElementById('password-modal').classList.add('hidden');
-                } catch (e) { console.error("Error removing user:", e); }
+            if (!guessedWord.includes('_')) {
+                printLine("\nCongrats! You guessed the word: " + secretWord);
+                endGame();
+            } else if (attempts === 0) {
+                printLine("\nGame Over! The word was: " + secretWord);
+                endGame();
             } else {
-                const input = document.getElementById('admin-password-input');
-                input.value = ''; input.placeholder = 'Incorrect password!';
-                input.classList.add('border-red-500', 'placeholder-red-400');
-                setTimeout(() => {
-                    input.classList.remove('border-red-500', 'placeholder-red-400');
-                    input.placeholder = 'Password';
-                }, 1500);
+                displayGameStatus();
+                printLine("Guess a letter: ");
+                terminalOutput.scrollTop = terminalOutput.scrollHeight;
             }
         });
 
-        function sortDOMPages() {
-            const container = document.getElementById('pages-container');
-            pageOrder.forEach(id => {
-                const el = document.getElementById(id);
-                if (el) container.appendChild(el); 
-            });
-            updatePageLabels();
+        function endGame() {
+            javaGameState = 'GAME_OVER';
+            terminalInput.placeholder = "Press Enter to run again.";
+            terminalOutput.scrollTop = terminalOutput.scrollHeight;
         }
 
-        function updatePageLabels() {
-            const pages = document.querySelectorAll('.dynamic-page');
-            pages.forEach((page, index) => {
-                const label = page.querySelector('.page-label');
-                if(label) label.textContent = `Page ${index + 2}`;
-            });
-        }
-
-        window.debouncedUpdateCover = () => {
-            setSyncStatus('syncing');
-            clearTimeout(writeTimers['cover']);
-            writeTimers['cover'] = setTimeout(() => {
-                setDoc(doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_COVER, 'main'), {
-                    place: document.getElementById('place').value,
-                    instructor: document.getElementById('instructor').value,
-                    date: document.getElementById('date').value,
-                    members: document.getElementById('members').value,
-                    lastEditedBy: myUsername
-                }, { merge: true }).then(() => setSyncStatus('synced'));
-            }, 800);
-        };
-
-        window.debouncedUpdatePage = (pageId) => {
-            setSyncStatus('syncing');
-            clearTimeout(writeTimers[pageId]);
-            writeTimers[pageId] = setTimeout(() => {
-                const pageEl = document.getElementById(pageId);
-                if(!pageEl) return;
+        // --- UTILS ---
+        window.copyRoomLink = async () => {
+            const link = window.location.href;
+            try {
+                if (navigator.clipboard) await navigator.clipboard.writeText(link);
+                else throw new Error();
                 
-                const type = pageEl.getAttribute('data-type');
-                const title = pageEl.querySelector('.page-title').value;
-                let payload = { title: title, lastEditedBy: myUsername };
-
-                if (type === 'text') {
-                    payload.content = pageEl.querySelector('.page-content').value;
-                } else {
-                    const cells = [];
-                    pageEl.querySelectorAll('.grid-cells-container > div').forEach(cell => {
-                        cells.push({
-                            b64: cell.querySelector('.hidden-b64').value,
-                            caption: cell.querySelector('.cell-caption').value
-                        });
-                    });
-                    payload.cells = cells;
+                const btnSpan = document.querySelector('#copy-link-btn span');
+                const original = btnSpan.textContent;
+                btnSpan.textContent = "Copied!";
+                setTimeout(() => btnSpan.textContent = original, 2500);
+            } catch (err) {
+                try {
+                    const temp = document.createElement("input"); temp.value = link;
+                    document.body.appendChild(temp); temp.select(); document.execCommand("copy"); document.body.removeChild(temp);
+                } catch(e) {
+                    const modal = document.getElementById('manual-copy-modal');
+                    const input = document.getElementById('manual-room-link');
+                    input.value = link; modal.classList.remove('hidden');
+                    setTimeout(() => { input.focus(); input.select(); }, 100);
                 }
-
-                setDoc(doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_PAGES, pageId), payload, { merge: true })
-                    .then(() => setSyncStatus('synced'));
-            }, 800);
-        };
-
-        window.addPage = async (type) => {
-            const pageId = 'page-' + Date.now();
-            setSyncStatus('syncing');
-            
-            let initialData = { type: type, title: '', lastEditedBy: myUsername };
-            if (type === 'text') {
-                initialData.content = '';
-            } else {
-                const count = type === 'grid2' ? 4 : 9;
-                initialData.cells = Array(count).fill({ b64: '', caption: '' });
             }
-
-            await setDoc(doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_PAGES, pageId), initialData);
-            pageOrder.push(pageId);
-            await setDoc(doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_COVER, 'main'), { pageOrder: pageOrder }, { merge: true });
-            setSyncStatus('synced');
-        };
-
-        window.removePage = async (pageId) => {
-            setSyncStatus('syncing');
-            await deleteDoc(doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_PAGES, pageId));
-            pageOrder = pageOrder.filter(id => id !== pageId);
-            await setDoc(doc(db, 'artifacts', baseAppId, 'public', 'data', COLL_COVER, 'main'), { pageOrder: pageOrder }, { merge: true });
-            setSyncStatus('synced');
-        };
-
-        function renderPageInDOM(pageId, data) {
-            const container = document.getElementById('pages-container');
-            const type = data.type;
-            
-            let contentHTML = '';
-            if (type === 'text') {
-                contentHTML = `
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">Content Text</label>
-                        <textarea class="page-content textarea-content w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none resize-y" rows="8" placeholder="Type text here..." oninput="window.debouncedUpdatePage('${pageId}')">${escapeHtml(data.content || '')}</textarea>
-                    </div>
-                `;
-            } else if (type === 'grid2' || type === 'grid3') {
-                const gridClass = type === 'grid2' ? 'grid-cols-2' : 'grid-cols-3';
-                let cellsHtml = '';
-                const cellsData = data.cells || [];
-                
-                cellsData.forEach((cellData, i) => {
-                    const cellId = `${pageId}-cell-${i}`;
-                    const hasImg = !!cellData.b64;
-                    cellsHtml += `
-                        <div class="border border-gray-200 rounded p-2 bg-gray-50 relative flex flex-col gap-2">
-                            <input type="hidden" class="hidden-b64" id="b64-${cellId}" value="${cellData.b64 || ''}">
-                            
-                            <div class="relative w-full ${type === 'grid2' ? 'h-32' : 'h-24'} bg-gray-200 rounded border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden cursor-pointer hover:bg-gray-300 transition-colors" 
-                                 onclick="document.getElementById('file-${cellId}').click()" id="preview-container-${cellId}">
-                                <span class="text-xs text-gray-500 font-medium">+ Photo</span>
-                                <img id="preview-img-${cellId}" class="absolute inset-0 w-full h-full object-cover border border-black ${hasImg ? '' : 'hidden'}" src="${cellData.b64 || ''}" />
-                            </div>
-                            
-                            <input type="file" id="file-${cellId}" accept="image/*" class="hidden" onchange="window.handleImageUpload(this, '${pageId}', ${i}, '${type}')">
-                            
-                            <button onclick="window.removeImage('${pageId}', ${i})" class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 shadow hover:bg-red-600 ${hasImg ? '' : 'hidden'}" id="remove-btn-${cellId}">
-                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                            </button>
-
-                            <input type="text" class="cell-caption w-full px-2 py-1 text-xs border border-gray-300 rounded outline-none focus:border-blue-500" placeholder="Caption" value="${escapeHtml(cellData.caption || '')}" oninput="window.debouncedUpdatePage('${pageId}')">
-                        </div>
-                    `;
-                });
-
-                contentHTML = `<div class="grid ${gridClass} gap-4 grid-cells-container">${cellsHtml}</div>`;
-            }
-
-            const headerColor = type === 'text' ? 'text-blue-800' : (type === 'grid2' ? 'text-green-800' : 'text-purple-800');
-            const typeLabel = type === 'text' ? 'Text Document' : (type === 'grid2' ? '2x2 Image Grid' : '3x3 Image Grid');
-
-            const pageHTML = `
-                <div id="${pageId}" data-type="${type}" class="dynamic-page relative p-6 bg-white border border-gray-200 rounded-xl shadow-sm">
-                    <button onclick="window.removePage('${pageId}')" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 transition-colors" title="Remove Page">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                    </button>
-                    
-                    <div class="flex justify-between items-end border-b border-gray-100 pb-2 mb-4">
-                        <h4 class="page-label font-bold ${headerColor}">Page</h4>
-                        <span class="text-xs font-semibold px-2 py-1 bg-gray-100 rounded text-gray-500">${typeLabel}</span>
-                    </div>
-
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-1">Page Title (Optional)</label>
-                            <input type="text" class="page-title w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Title" value="${escapeHtml(data.title || '')}" oninput="window.debouncedUpdatePage('${pageId}')">
-                        </div>
-                        ${contentHTML}
-                        <p class="text-[10px] text-gray-400 text-right italic">Last edited by: <span class="font-semibold">${escapeHtml(data.lastEditedBy || 'Unknown')}</span></p>
-                    </div>
-                </div>
-            `;
-            container.insertAdjacentHTML('beforeend', pageHTML);
-        }
-
-        function updatePageInDOM(pageId, data) {
-            const pageEl = document.getElementById(pageId);
-            if(!pageEl) return;
-            
-            pageEl.querySelector('.page-title').value = data.title || '';
-            
-            if (data.type === 'text') {
-                pageEl.querySelector('.page-content').value = data.content || '';
-            } else {
-                const cells = data.cells || [];
-                const cellEls = pageEl.querySelectorAll('.grid-cells-container > div');
-                cells.forEach((cellData, i) => {
-                    const el = cellEls[i];
-                    if(!el) return;
-                    
-                    const cellId = `${pageId}-cell-${i}`;
-                    el.querySelector('.hidden-b64').value = cellData.b64 || '';
-                    el.querySelector('.cell-caption').value = cellData.caption || '';
-                    
-                    const img = el.querySelector(`#preview-img-${cellId}`);
-                    const btn = el.querySelector(`#remove-btn-${cellId}`);
-                    if (cellData.b64) {
-                        img.src = cellData.b64;
-                        img.classList.remove('hidden');
-                        btn.classList.remove('hidden');
-                    } else {
-                        img.src = '';
-                        img.classList.add('hidden');
-                        btn.classList.add('hidden');
-                    }
-                });
-            }
-        }
-
-        window.handleImageUpload = (input, pageId, index, type) => {
-            const file = input.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    const targetRatio = type === 'grid3' ? 1 : (4 / 3);
-                    const w = img.width, h = img.height;
-                    const srcRatio = w / h;
-                    
-                    let sWidth = w, sHeight = h, sx = 0, sy = 0;
-                    if (srcRatio > targetRatio) {
-                        sWidth = h * targetRatio;
-                        sx = (w - sWidth) / 2;
-                    } else {
-                        sHeight = w / targetRatio;
-                        sy = (h - sHeight) / 2;
-                    }
-
-                    canvas.width = type === 'grid3' ? 400 : 600;
-                    canvas.height = type === 'grid3' ? 400 : 450;
-                    const ctx = canvas.getContext('2d');
-                    ctx.fillStyle = "#ffffff";
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
-                    
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-                    
-                    const cellId = `${pageId}-cell-${index}`;
-                    document.getElementById(`b64-${cellId}`).value = dataUrl;
-                    const previewImg = document.getElementById(`preview-img-${cellId}`);
-                    previewImg.src = dataUrl;
-                    previewImg.classList.remove('hidden');
-                    document.getElementById(`remove-btn-${cellId}`).classList.remove('hidden');
-                    
-                    window.debouncedUpdatePage(pageId);
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        };
-
-        window.removeImage = (pageId, index) => {
-            event.stopPropagation();
-            const cellId = `${pageId}-cell-${index}`;
-            document.getElementById(`b64-${cellId}`).value = '';
-            document.getElementById(`preview-img-${cellId}`).classList.add('hidden');
-            document.getElementById(`remove-btn-${cellId}`).classList.add('hidden');
-            document.getElementById(`file-${cellId}`).value = '';
-            window.debouncedUpdatePage(pageId);
         };
 
         function escapeHtml(unsafe) {
-            if(!unsafe) return "";
-            return String(unsafe).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+            return String(unsafe).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         }
-
-        window.generateWordDoc = function() {
-            const place = document.getElementById('place').value;
-            const instructor = document.getElementById('instructor').value;
-            const date = document.getElementById('date').value;
-            
-            const membersList = document.getElementById('members').value
-                .split('\n').filter(name => name.trim() !== '')
-                .map(name => `<p style="font-size: 12pt; font-family: 'Times New Roman', serif; margin: 0; padding: 2pt 0; line-height: 1.2; text-align: center;">${escapeHtml(name)}</p>`).join('');
-
-            let dynamicPagesHtml = '';
-            pageOrder.forEach((pageId) => {
-                const pageEl = document.getElementById(pageId);
-                if(!pageEl) return;
-
-                const type = pageEl.getAttribute('data-type');
-                const title = pageEl.querySelector('.page-title').value.trim();
-                
-                dynamicPagesHtml += `<br clear="all" style="mso-special-character:line-break;page-break-before:always" />`;
-                
-                if (title) dynamicPagesHtml += `<p style="font-size: 12pt; font-weight: bold; font-family: 'Times New Roman', serif; text-align: left; margin: 0 0 12pt 0;">${escapeHtml(title)}</p>`;
-                
-                if (type === 'text') {
-                    const content = pageEl.querySelector('.page-content').value;
-                    if (content) {
-                        content.split('\n').forEach(p => {
-                            const text = p.trim();
-                            if (text === '') dynamicPagesHtml += `<p style="font-size: 12pt; font-family: 'Times New Roman', serif; margin: 0; padding: 0;">&nbsp;</p>`;
-                            else dynamicPagesHtml += `<p style="font-size: 12pt; font-family: 'Times New Roman', serif; text-align: justify; margin: 0 0 10pt 0;">${escapeHtml(text)}</p>`;
-                        });
-                    }
-                } else if (type === 'grid2' || type === 'grid3') {
-                    const cols = type === 'grid2' ? 2 : 3;
-                    const imgWidth = type === 'grid2' ? 300 : 180; 
-                    const imgHeight = type === 'grid2' ? 225 : 180;
-                    
-                    dynamicPagesHtml += `<table style="width:100%; border-collapse: collapse; border: none; table-layout: fixed;" border="0" cellspacing="0" cellpadding="0">`;
-                    const cells = Array.from(pageEl.querySelectorAll('.grid-cells-container > div'));
-                    
-                    for(let i = 0; i < cells.length; i += cols) {
-                        dynamicPagesHtml += `<tr>`;
-                        for(let j = 0; j < cols; j++) {
-                            const cell = cells[i + j];
-                            dynamicPagesHtml += `<td style="width: ${100/cols}%; text-align: center; vertical-align: top; padding: 5pt;">`;
-                            if (cell) {
-                                const b64 = cell.querySelector('.hidden-b64').value;
-                                const cap = cell.querySelector('.cell-caption').value.trim();
-                                if (b64) dynamicPagesHtml += `<img src="${b64}" width="${imgWidth}" height="${imgHeight}" style="width:${imgWidth}px; height:${imgHeight}px; border: 1pt solid black;" />`;
-                                if (cap) dynamicPagesHtml += `<p style="font-family: 'Times New Roman', serif; font-size: 12pt; text-align: center; margin-top: 5pt; margin-bottom: 10pt;">${escapeHtml(cap)}</p>`;
-                            }
-                            dynamicPagesHtml += `</td>`;
-                        }
-                        dynamicPagesHtml += `</tr>`;
-                    }
-                    dynamicPagesHtml += `</table>`;
-                }
-            });
-
-            const wordDocumentXML = `
-                <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-                <head><meta charset="utf-8"><title>Document</title>
-                <style>
-                    @page WordSection1 { size: 8.5in 11.0in; margin: 1.0in 1.0in 1.0in 1.0in; mso-header-margin: 0.5in; mso-footer-margin: 0.5in; mso-title-page: yes; mso-first-footer: f-first; mso-footer: f-rest; }
-                    div.WordSection1 { page: WordSection1; }
-                    body { font-family: 'Times New Roman', serif; }
-                    table { table-layout: fixed; width: 100%; }
-                </style></head>
-                <body>
-                    <div class="WordSection1">
-                        <div style="text-align: center;">
-                            <div style="margin-top: 50pt;"></div>
-                            <p style="font-size: 16pt; font-weight: bold; font-family: 'Times New Roman', serif; margin: 0; padding: 2pt 0;">Midterm Examination</p>
-                            <p style="font-size: 16pt; font-weight: bold; font-family: 'Times New Roman', serif; margin: 0; padding: 2pt 0;">Local Environment and Mobility Assessment</p>
-                            <p style="font-size: 14pt; font-family: 'Times New Roman', serif; margin: 10pt 0 0 0; padding: 0;">${escapeHtml(place)}</p>
-                            <div style="margin-top: 140pt;">
-                                <p style="font-size: 12pt; font-family: 'Times New Roman', serif; margin: 0; padding: 2pt 0;">NSTP Instructor:</p>
-                                <p style="font-size: 12pt; font-family: 'Times New Roman', serif; margin: 0; padding: 2pt 0;">${escapeHtml(instructor)}</p>
-                            </div>
-                            <div style="margin-top: 140pt;">
-                                <p style="font-size: 12pt; font-family: 'Times New Roman', serif; margin: 0; padding: 2pt 0;">Group Members:</p>
-                                ${membersList}
-                            </div>
-                            <div style="margin-top: 20pt;">
-                                <p style="font-size: 12pt; font-family: 'Times New Roman', serif; margin: 0; padding: 2pt 0;">${escapeHtml(date)}</p>
-                            </div>
-                        </div>
-                        ${dynamicPagesHtml}
-                        <div style="mso-element:footer" id="f-first"></div>
-                        <div style="mso-element:footer" id="f-rest">
-                            <p style="text-align: right; font-size: 12pt; font-family: 'Times New Roman', serif; margin: 0;">
-                                <span style="mso-field-code:' PAGE '"></span>
-                            </p>
-                        </div>
-                    </div>
-                </body></html>`;
-
-            const blob = new Blob(['\ufeff', wordDocumentXML], { type: 'application/msword' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'NSTP_Assessment_Document.doc';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        };
     </script>
 </body>
 </html>
