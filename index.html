@@ -2,51 +2,419 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>No Website Hosted</title>
-    <!-- Tailwind CSS for rapid, modern styling -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Java Hangman Web</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
     <style>
-        /* A gentle fade-in animation for a premium feel */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        /* Custom scrollbar for terminal and code view */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1a1a1a; }
+        ::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        
+        .tab-active {
+            color: #60A5FA;
+            border-bottom: 2px solid #60A5FA;
+            background-color: rgba(31, 41, 55, 0.5);
         }
-        .animate-fade-in {
-            animation: fadeIn 0.6s ease-out forwards;
+        .tab-inactive {
+            color: #9CA3AF;
+            border-bottom: 2px solid transparent;
+        }
+        .tab-inactive:hover {
+            color: #E5E7EB;
+            background-color: rgba(31, 41, 55, 0.3);
+        }
+
+        /* PrismJS Overrides to match our custom theme */
+        pre[class*="language-"] {
+            background: transparent !important;
+            margin: 0 !important;
+            padding: 1rem !important; /* Matches Tailwind p-4 */
+            text-shadow: none !important;
+        }
+        code[class*="language-"], pre[class*="language-"] {
+            font-size: 0.875rem !important; /* Matches text-sm */
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
         }
     </style>
 </head>
-<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-200 min-h-screen flex flex-col font-sans transition-colors duration-300 antialiased">
-    
-    <!-- Main Content Area: Flex-grow ensures it takes up available space, pushing the footer down -->
-    <main class="flex-grow flex flex-col items-center justify-center p-6 text-center animate-fade-in">
+<body class="bg-neutral-950 text-neutral-200 font-sans h-screen flex flex-col overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-neutral-900 border-b border-neutral-800 p-3 sm:p-4 shadow-md flex items-center justify-between z-10">
+        <div class="flex items-center gap-3">
+            <div class="bg-emerald-600 p-2 rounded-lg text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            </div>
+            <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white">Eco Hangman Web</h1>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <div class="flex bg-neutral-900 border-b border-neutral-800 z-10 shrink-0">
+        <button id="tab-code" class="flex-1 py-3 sm:py-4 flex items-center justify-center gap-2 font-medium transition-colors tab-inactive text-sm sm:text-base" onclick="switchTab('code')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+            View Source Code
+        </button>
+        <button id="tab-run" class="flex-1 py-3 sm:py-4 flex items-center justify-center gap-2 font-medium transition-colors tab-active text-sm sm:text-base" onclick="switchTab('run')">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+            Run Application
+        </button>
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 relative w-full max-w-5xl mx-auto h-full overflow-hidden">
         
-        <!-- Decorative Icon (Globe with a clean, minimal look) -->
-        <div class="mb-8 p-4 bg-slate-100 dark:bg-slate-800 rounded-full shadow-sm ring-1 ring-slate-200 dark:ring-slate-700">
-            <svg class="w-12 h-12 text-slate-400 dark:text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path>
-            </svg>
+        <!-- CODE VIEW -->
+        <div id="view-code" class="absolute inset-0 hidden flex-col overflow-y-auto p-4 space-y-6 pb-20">
+            <!-- Main.java -->
+            <div class="shrink-0 bg-[#1e1e1e] rounded-xl overflow-hidden border border-neutral-800 shadow-xl">
+                <div class="bg-[#2d2d2d] px-4 py-2 text-xs font-mono text-neutral-400 border-b border-neutral-800">
+                    Main.java
+                </div>
+                <pre class="overflow-x-auto font-mono language-java"><code class="language-java">// Main class to run the Hangman program
+public class Main {
+    public static void main(String[] args) {
+        // Create a new game instance and start playing
+        Game hangmanGame = new Game();
+        hangmanGame.play();
+    }
+}</code></pre>
+            </div>
+
+            <!-- Game.java -->
+            <div class="shrink-0 bg-[#1e1e1e] rounded-xl overflow-hidden border border-neutral-800 shadow-xl">
+                <div class="bg-[#2d2d2d] px-4 py-2 text-xs font-mono text-neutral-400 border-b border-neutral-800">
+                    Game.java
+                </div>
+                <pre class="overflow-x-auto font-mono language-java"><code class="language-java">import java.util.Scanner;
+import java.util.Random;
+
+// Class containing all the logic for the Hangman game
+public class Game {
+    
+    // Setting up variables with private access modifiers 
+    private String[] wordList = {"DEFORESTATION", "CLIMATE CHANGE", "OVERFISHING", "ANIMAL RIGHTS", "WATER POLLUTION"}; 
+    private String secretWord;
+    private char[] guessedWord;
+    private int attempts;
+    private Scanner scanner;
+
+    // Constructor to set up the initial state of the game
+    public Game() {
+        Random rand = new Random();
+        
+        // Randomly select a word from the list every time the game runs
+        secretWord = wordList[rand.nextInt(wordList.length)];
+        guessedWord = new char[secretWord.length()];
+        
+        // Fill the hidden word with underscores, but keep spaces visible
+        for (int i = 0; i < guessedWord.length; i++) {
+            if (secretWord.charAt(i) == ' ') {
+                guessedWord[i] = ' ';
+            } else {
+                guessedWord[i] = '_';
+            }
+        }
+
+        attempts = 5; 
+        scanner = new Scanner(System.in);
+    }
+
+    // Method to handle the main game loop
+    public void play() {
+        System.out.println("Welcome to Eco-Hangman!");
+
+        // Loop while the player has attempts left and there are still underscores
+        while (attempts > 0 && new String(guessedWord).contains("_")) {
+            displayStatus();
+            char userGuess = getValidInput();
+            processGuess(userGuess);
+        }
+
+        // Show winning or losing message
+        if (!new String(guessedWord).contains("_")) {
+            System.out.println("\nCongrats! You guessed the word: " + secretWord);
+        } else {
+            System.out.println("\nGame Over! The word was: " + secretWord);
+        }
+        
+        scanner.close();
+    }
+
+    // Method to show current progress and attempts remaining
+    private void displayStatus() {
+        System.out.println("\nWord: " + new String(guessedWord));
+        System.out.println("Attempts left: " + attempts);
+    }
+
+    // Method to get input and handle exceptions without crashing
+    private char getValidInput() {
+        while (true) {
+            System.out.print("Guess a letter: ");
+            try {
+                String input = scanner.nextLine().toUpperCase();
+                
+                // Check for empty input
+                if (input.isEmpty()) {
+                    throw new Exception("Input cannot be empty. Please enter a letter.");
+                }
+                
+                char guess = input.charAt(0); 
+                
+                // Check if the input is actually a letter
+                if (!Character.isLetter(guess)) {
+                    throw new Exception("Invalid input. Please enter letters only.");
+                }
+                
+                // Return the valid letter
+                return guess; 
+                
+            } catch (Exception e) {
+                // Catching any unexpected errors and prompting the user again
+                System.out.println("Error: " + e.getMessage());
+            }
+        }
+    }
+
+    // Method to check if the guessed letter is inside the secret word
+    private void processGuess(char guess) {
+        boolean found = false;
+        
+        // Go through the secret word to find matching letters
+        for (int i = 0; i < secretWord.length(); i++) {
+            if (secretWord.charAt(i) == guess) {
+                guessedWord[i] = guess; 
+                found = true;
+            }
+        }
+        
+        // Decrease attempts if the guess was wrong
+        if (!found) {
+            attempts--;
+            System.out.println("Incorrect guess!");
+        } else {
+            System.out.println("Good guess!");
+        }
+    }
+}</code></pre>
+            </div>
         </div>
 
-        <!-- Primary Message -->
-        <h1 class="text-3xl md:text-5xl font-semibold tracking-tight text-slate-900 dark:text-white mb-4">
-            No website hosted at the moment
-        </h1>
-        
-        <!-- Secondary Context Text -->
-        <p class="text-slate-500 dark:text-slate-400 max-w-md mx-auto text-lg">
-            This domain is successfully registered and active, but there is currently no content configured to be displayed here.
-        </p>
-        
+        <!-- RUN VIEW -->
+        <div id="view-run" class="absolute inset-0 flex flex-col bg-black">
+            <!-- Terminal Output -->
+            <div id="terminal-output" class="flex-1 overflow-y-auto p-4 font-mono text-sm sm:text-base text-gray-300 leading-relaxed whitespace-pre-wrap break-words"></div>
+            
+            <!-- Terminal Input -->
+            <form id="input-form" class="bg-[#1e1e1e] border-t border-neutral-800 p-2 sm:p-3 flex gap-2 shrink-0">
+                <span class="text-green-500 font-mono py-2 hidden sm:inline">&gt;</span>
+                <input 
+                    type="text" 
+                    id="user-input" 
+                    autocomplete="off"
+                    autocorrect="off"
+                    autocapitalize="characters"
+                    spellcheck="false"
+                    class="flex-1 bg-neutral-900 border border-neutral-700 text-white rounded px-3 py-2 font-mono focus:outline-none focus:border-blue-500 transition-colors"
+                    placeholder="Type here..."
+                >
+                <button type="submit" id="submit-btn" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-medium transition-colors">
+                    Enter
+                </button>
+                <button type="button" id="restart-btn" onclick="startGame()" class="bg-emerald-700 hover:bg-emerald-600 text-white px-3 py-2 rounded transition-colors hidden" title="Restart Game">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+                </button>
+            </form>
+        </div>
+
     </main>
 
-    <!-- Footer Area: Sticks to the bottom due to the flex-grow on the main element -->
-    <footer class="w-full py-6 text-center animate-fade-in" style="animation-delay: 0.2s; opacity: 0;">
-        <p class="text-sm text-slate-500 dark:text-slate-500">
-            Hosted by <span class="font-medium text-slate-700 dark:text-slate-300 tracking-wide">RMB and Github Pages</span>
-        </p>
-    </footer>
+    <script>
+        // Tab Navigation Logic
+        function switchTab(tabId) {
+            const btnCode = document.getElementById('tab-code');
+            const btnRun = document.getElementById('tab-run');
+            const viewCode = document.getElementById('view-code');
+            const viewRun = document.getElementById('view-run');
+            const inputField = document.getElementById('user-input');
 
+            if (tabId === 'code') {
+                btnCode.className = "flex-1 py-3 sm:py-4 flex items-center justify-center gap-2 font-medium transition-colors tab-active text-sm sm:text-base";
+                btnRun.className = "flex-1 py-3 sm:py-4 flex items-center justify-center gap-2 font-medium transition-colors tab-inactive text-sm sm:text-base";
+                viewCode.classList.remove('hidden');
+                viewCode.classList.add('flex');
+                viewRun.classList.add('hidden');
+                viewRun.classList.remove('flex');
+            } else {
+                btnRun.className = "flex-1 py-3 sm:py-4 flex items-center justify-center gap-2 font-medium transition-colors tab-active text-sm sm:text-base text-green-400";
+                btnRun.style.borderBottomColor = "#4ade80";
+                btnCode.className = "flex-1 py-3 sm:py-4 flex items-center justify-center gap-2 font-medium transition-colors tab-inactive text-sm sm:text-base";
+                viewRun.classList.remove('hidden');
+                viewRun.classList.add('flex');
+                viewCode.classList.add('hidden');
+                viewCode.classList.remove('flex');
+                
+                // Focus input when returning to game
+                if (gameState === 'PLAYING') {
+                    inputField.focus();
+                }
+            }
+        }
+
+        // --- JAVA EMULATOR LOGIC ---
+
+        const wordList = ["DEFORESTATION", "CLIMATE CHANGE", "OVERFISHING", "ANIMAL RIGHTS", "WATER POLLUTION"];
+        
+        // Game State
+        let gameState = 'IDLE'; 
+        let secretWord = '';
+        let guessedWord = [];
+        let attempts = 0;
+
+        const terminalOutput = document.getElementById('terminal-output');
+        const inputForm = document.getElementById('input-form');
+        const userInput = document.getElementById('user-input');
+        const submitBtn = document.getElementById('submit-btn');
+        const restartBtn = document.getElementById('restart-btn');
+
+        // Helper to print text to the simulated console
+        function printLine(text) {
+            const line = document.createElement('div');
+            line.textContent = text;
+            terminalOutput.appendChild(line);
+            scrollToBottom();
+        }
+
+        // Helper to append to the last line (for the scanner input)
+        function appendToLastLine(text) {
+            if (terminalOutput.lastChild) {
+                terminalOutput.lastChild.textContent += text;
+            } else {
+                printLine(text);
+            }
+        }
+
+        function scrollToBottom() {
+            terminalOutput.scrollTop = terminalOutput.scrollHeight;
+        }
+
+        function clearTerminal() {
+            terminalOutput.innerHTML = '';
+        }
+
+        function startGame() {
+            clearTerminal();
+            
+            // Randomly select word
+            secretWord = wordList[Math.floor(Math.random() * wordList.length)];
+            
+            // Fill with underscores, but keep spaces visible
+            guessedWord = secretWord.split('').map(char => char === ' ' ? ' ' : '_');
+            
+            attempts = 5;
+            gameState = 'PLAYING';
+            
+            // UI Adjustments
+            userInput.disabled = false;
+            submitBtn.classList.remove('hidden');
+            restartBtn.classList.add('hidden');
+            userInput.placeholder = "Type here...";
+
+            // Initial Java output
+            printLine("Welcome to Eco-Hangman!");
+            displayStatus();
+            printLine("Guess a letter: ");
+            
+            userInput.focus();
+        }
+
+        function displayStatus() {
+            printLine("");
+            printLine(`Word: ${guessedWord.join('')}`);
+            printLine(`Attempts left: ${attempts}`);
+        }
+
+        inputForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (gameState !== 'PLAYING') return;
+
+            const rawInput = userInput.value;
+            const inputUpper = rawInput.toUpperCase();
+            userInput.value = '';
+
+            // Echo input onto the waiting line
+            appendToLastLine(rawInput);
+
+            // Java logic: Check for empty input
+            if (inputUpper.length === 0) {
+                printLine("Error: Input cannot be empty. Please enter a letter.");
+                printLine("Guess a letter: ");
+                scrollToBottom();
+                return;
+            }
+
+            const guess = inputUpper.charAt(0);
+
+            // Java logic: Check if input is a letter
+            if (!/^[A-Z]$/.test(guess)) {
+                printLine("Error: Invalid input. Please enter letters only.");
+                printLine("Guess a letter: ");
+                scrollToBottom();
+                return;
+            }
+
+            // Process Guess
+            let found = false;
+            for (let i = 0; i < secretWord.length; i++) {
+                if (secretWord.charAt(i) === guess) {
+                    guessedWord[i] = guess;
+                    found = true;
+                }
+            }
+
+            if (!found) {
+                attempts--;
+                printLine("Incorrect guess!");
+            } else {
+                printLine("Good guess!");
+            }
+
+            // Check Win/Loss
+            if (!guessedWord.includes('_')) {
+                printLine("\nCongrats! You guessed the word: " + secretWord);
+                endGame();
+            } else if (attempts === 0) {
+                printLine("\nGame Over! The word was: " + secretWord);
+                endGame();
+            } else {
+                // Continue loop
+                displayStatus();
+                printLine("Guess a letter: ");
+                scrollToBottom();
+            }
+        });
+
+        function endGame() {
+            gameState = 'GAME_OVER';
+            userInput.disabled = true;
+            userInput.placeholder = "Game Over. Press Restart.";
+            submitBtn.classList.add('hidden');
+            restartBtn.classList.remove('hidden');
+            scrollToBottom();
+        }
+
+        // Start game automatically on load
+        window.onload = function() {
+            switchTab('run'); // Default to run view
+            startGame();
+        };
+
+    </script>
+    <!-- PrismJS library for Syntax Highlighting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
 </body>
 </html>
