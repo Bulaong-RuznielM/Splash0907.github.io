@@ -1,420 +1,648 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Java Hangman Web</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Ultimate Guides: Zorin OS & Linux Mint</title>
+    <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <script>
+        tailwind.config = {
+            darkMode: 'class', // Enable class-based dark mode
+        }
+    </script>
+    <!-- FontAwesome for Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        /* Custom scrollbar for terminal and code view */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #1a1a1a; }
-        ::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+        }
+        /* Scoped structural prose styles */
+        .prose h2 { margin-top: 2em; margin-bottom: 0.5em; font-weight: 700; font-size: 1.5rem; }
+        .prose h3 { margin-top: 1.5em; margin-bottom: 0.5em; font-weight: 600; font-size: 1.25rem; }
+        .prose p { margin-bottom: 1em; line-height: 1.75; }
+        .prose ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 1em; }
+        .prose li { margin-bottom: 0.5em; }
+        .prose strong { font-weight: 600; }
         
-        .tab-active {
-            color: #60A5FA;
-            border-bottom: 2px solid #60A5FA;
-            background-color: rgba(31, 41, 55, 0.5);
+        /* Code Block Styling */
+        .code-block { 
+            padding: 1rem; 
+            border-radius: 0.5rem; 
+            overflow-x: auto; 
+            position: relative; 
+            margin-bottom: 1.5em; 
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; 
+            font-size: 0.875rem;
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
         }
-        .tab-inactive {
-            color: #9CA3AF;
-            border-bottom: 2px solid transparent;
+        .copy-btn { 
+            position: absolute; 
+            top: 0.5rem; 
+            right: 0.5rem; 
+            background: rgba(255,255,255,0.1); 
+            border: none; 
+            color: white; 
+            padding: 0.35rem 0.6rem; 
+            border-radius: 0.375rem; 
+            cursor: pointer; 
+            font-size: 0.875rem; 
+            transition: all 0.2s; 
         }
-        .tab-inactive:hover {
-            color: #E5E7EB;
-            background-color: rgba(31, 41, 55, 0.3);
+        .copy-btn:hover { 
+            background: rgba(255,255,255,0.25); 
         }
-
-        /* PrismJS Overrides to match our custom theme */
-        pre[class*="language-"] {
-            background: transparent !important;
-            margin: 0 !important;
-            padding: 1rem !important; /* Matches Tailwind p-4 */
-            text-shadow: none !important;
+        
+        .step-number { 
+            display: inline-flex; 
+            align-items: center; 
+            justify-content: center; 
+            width: 1.75rem; 
+            height: 1.75rem; 
+            border-radius: 9999px; 
+            font-size: 0.875rem; 
+            font-weight: bold; 
+            margin-right: 0.5rem; 
         }
-        code[class*="language-"], pre[class*="language-"] {
-            font-size: 0.875rem !important; /* Matches text-sm */
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
-        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        /* Utility Classes for App States */
+        .app-view { display: none; }
+        .app-view.active { display: flex; }
     </style>
 </head>
-<body class="bg-neutral-950 text-neutral-200 font-sans h-screen flex flex-col overflow-hidden">
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 min-h-screen transition-colors duration-200 m-0 p-0 flex flex-col relative">
 
-    <!-- Header -->
-    <header class="bg-neutral-900 border-b border-neutral-800 p-3 sm:p-4 shadow-md flex items-center justify-between z-10">
-        <div class="flex items-center gap-3">
-            <div class="bg-emerald-600 p-2 rounded-lg text-white">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-            </div>
-            <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white">Eco Hangman Web</h1>
+    <!-- Global Theme Toggle (Absolute Top Right) -->
+    <button class="theme-toggle-btn absolute top-4 right-4 z-50 bg-white dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-full w-10 h-10 flex items-center justify-center hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none" title="Toggle Dark Mode" style="position: fixed;">
+        <i class="fa-solid fa-moon text-lg"></i>
+    </button>
+
+    <!-- ========================================== -->
+    <!--              LANDING PAGE                  -->
+    <!-- ========================================== -->
+    <div id="landing-view" class="app-view active flex-col items-center justify-center min-h-screen p-6 relative">
+        <div class="max-w-4xl w-full text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white mb-4">Linux Master Guides</h1>
+            <p class="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">Select your distribution to view the ultimate future-proof guide for installation, optimization, and veteran secrets.</p>
         </div>
-    </header>
 
-    <!-- Navigation Tabs -->
-    <div class="flex bg-neutral-900 border-b border-neutral-800 z-10 shrink-0">
-        <button id="tab-code" class="flex-1 py-3 sm:py-4 flex items-center justify-center gap-2 font-medium transition-colors tab-inactive text-sm sm:text-base" onclick="switchTab('code')">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-            View Source Code
-        </button>
-        <button id="tab-run" class="flex-1 py-3 sm:py-4 flex items-center justify-center gap-2 font-medium transition-colors tab-active text-sm sm:text-base" onclick="switchTab('run')">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
-            Run Application
-        </button>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl w-full">
+            
+            <!-- Zorin OS Card -->
+            <button onclick="openGuide('zorin-view')" class="group relative bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-lg hover:shadow-2xl border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 transition-all duration-300 transform hover:-translate-y-2 text-left flex flex-col h-full overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
+                <div class="flex items-center justify-between mb-6">
+                    <div class="w-16 h-16 bg-blue-100 dark:bg-blue-900/40 rounded-2xl flex items-center justify-center text-blue-600 dark:text-blue-400 text-3xl">
+                        <i class="fa-brands fa-linux"></i>
+                    </div>
+                    <span class="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 text-xs font-bold px-3 py-1 rounded-full">Recommended</span>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Zorin OS 18</h2>
+                <p class="text-gray-500 dark:text-gray-400 text-sm flex-grow">The ultimate Windows alternative. Clean, polished, and beautifully designed for immediate familiarity.</p>
+                <div class="mt-6 flex items-center text-blue-600 dark:text-blue-400 font-semibold text-sm">
+                    Open Guide <i class="fa-solid fa-arrow-right ml-2 transform group-hover:translate-x-1 transition-transform"></i>
+                </div>
+            </button>
+
+            <!-- Linux Mint Card -->
+            <button onclick="openGuide('mint-view')" class="group relative bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-lg hover:shadow-2xl border border-gray-200 dark:border-gray-700 hover:border-green-500 dark:hover:border-green-500 transition-all duration-300 transform hover:-translate-y-2 text-left flex flex-col h-full overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-green-500 to-emerald-600"></div>
+                <div class="flex items-center justify-between mb-6">
+                    <div class="w-16 h-16 bg-green-100 dark:bg-green-900/40 rounded-2xl flex items-center justify-center text-green-600 dark:text-green-400 text-3xl">
+                        <i class="fa-brands fa-linux"></i>
+                    </div>
+                    <span class="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 text-xs font-bold px-3 py-1 rounded-full">Cinnamon</span>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">Linux Mint</h2>
+                <p class="text-gray-500 dark:text-gray-400 text-sm flex-grow">The rock-solid traditional desktop. Highly customizable, incredibly stable, and anti-Snap by default.</p>
+                <div class="mt-6 flex items-center text-green-600 dark:text-green-400 font-semibold text-sm">
+                    Open Guide <i class="fa-solid fa-arrow-right ml-2 transform group-hover:translate-x-1 transition-transform"></i>
+                </div>
+            </button>
+
+            <!-- Future OS Card (Generic/Coming Soon) -->
+            <button disabled class="relative bg-gray-100 dark:bg-gray-800/50 rounded-3xl p-8 shadow-sm border border-gray-200 dark:border-gray-700 opacity-60 cursor-not-allowed text-left flex flex-col h-full overflow-hidden grayscale">
+                <div class="absolute top-0 left-0 w-full h-2 bg-gray-400 dark:bg-gray-600"></div>
+                <div class="flex items-center justify-between mb-6">
+                    <div class="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-2xl flex items-center justify-center text-gray-500 dark:text-gray-400 text-3xl">
+                        <i class="fa-solid fa-lock"></i>
+                    </div>
+                    <span class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs font-bold px-3 py-1 rounded-full">In Development</span>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-700 dark:text-gray-400 mb-2">New Distribution</h2>
+                <p class="text-gray-500 dark:text-gray-500 text-sm flex-grow">We are actively researching and formulating our next ultimate guide. Stay tuned for more Linux optimization secrets.</p>
+                <div class="mt-6 flex items-center text-gray-500 dark:text-gray-400 font-semibold text-sm">
+                    Locked <i class="fa-solid fa-lock ml-2"></i>
+                </div>
+            </button>
+
+        </div>
     </div>
 
-    <!-- Main Content Area -->
-    <main class="flex-1 relative w-full max-w-5xl mx-auto h-full overflow-hidden">
-        
-        <!-- CODE VIEW -->
-        <div id="view-code" class="absolute inset-0 hidden flex-col overflow-y-auto p-4 space-y-6 pb-20">
-            <!-- Main.java -->
-            <div class="shrink-0 bg-[#1e1e1e] rounded-xl overflow-hidden border border-neutral-800 shadow-xl">
-                <div class="bg-[#2d2d2d] px-4 py-2 text-xs font-mono text-neutral-400 border-b border-neutral-800">
-                    Main.java
-                </div>
-                <pre class="overflow-x-auto font-mono language-java"><code class="language-java">// Main class to run the Hangman program
-public class Main {
-    public static void main(String[] args) {
-        // Create a new game instance and start playing
-        Game hangmanGame = new Game();
-        hangmanGame.play();
-    }
-}</code></pre>
+
+    <!-- ========================================== -->
+    <!--              ZORIN OS GUIDE                -->
+    <!-- ========================================== -->
+    <div id="zorin-view" class="app-view flex-col md:flex-row w-full">
+        <!-- Mobile Header -->
+        <div class="md:hidden bg-blue-600 dark:bg-gray-800 text-white p-4 flex justify-between items-center sticky top-0 z-50 shadow-md">
+            <div class="flex items-center">
+                <button onclick="goHome()" class="text-white focus:outline-none hover:text-blue-200 mr-4 transition-colors p-1" title="Back to Selection">
+                    <i class="fa-solid fa-arrow-left text-xl"></i>
+                </button>
+                <h1 class="font-bold text-lg"><i class="fa-brands fa-linux mr-2"></i>Zorin Guide</h1>
             </div>
-
-            <!-- Game.java -->
-            <div class="shrink-0 bg-[#1e1e1e] rounded-xl overflow-hidden border border-neutral-800 shadow-xl">
-                <div class="bg-[#2d2d2d] px-4 py-2 text-xs font-mono text-neutral-400 border-b border-neutral-800">
-                    Game.java
-                </div>
-                <pre class="overflow-x-auto font-mono language-java"><code class="language-java">import java.util.Scanner;
-import java.util.Random;
-
-// Class containing all the logic for the Hangman game
-public class Game {
-    
-    // Setting up variables with private access modifiers 
-    private String[] wordList = {"DEFORESTATION", "CLIMATE CHANGE", "OVERFISHING", "ANIMAL RIGHTS", "WATER POLLUTION"}; 
-    private String secretWord;
-    private char[] guessedWord;
-    private int attempts;
-    private Scanner scanner;
-
-    // Constructor to set up the initial state of the game
-    public Game() {
-        Random rand = new Random();
-        
-        // Randomly select a word from the list every time the game runs
-        secretWord = wordList[rand.nextInt(wordList.length)];
-        guessedWord = new char[secretWord.length()];
-        
-        // Fill the hidden word with underscores, but keep spaces visible
-        for (int i = 0; i < guessedWord.length; i++) {
-            if (secretWord.charAt(i) == ' ') {
-                guessedWord[i] = ' ';
-            } else {
-                guessedWord[i] = '_';
-            }
-        }
-
-        attempts = 5; 
-        scanner = new Scanner(System.in);
-    }
-
-    // Method to handle the main game loop
-    public void play() {
-        System.out.println("Welcome to Eco-Hangman!");
-
-        // Loop while the player has attempts left and there are still underscores
-        while (attempts > 0 && new String(guessedWord).contains("_")) {
-            displayStatus();
-            char userGuess = getValidInput();
-            processGuess(userGuess);
-        }
-
-        // Show winning or losing message
-        if (!new String(guessedWord).contains("_")) {
-            System.out.println("\nCongrats! You guessed the word: " + secretWord);
-        } else {
-            System.out.println("\nGame Over! The word was: " + secretWord);
-        }
-        
-        scanner.close();
-    }
-
-    // Method to show current progress and attempts remaining
-    private void displayStatus() {
-        System.out.println("\nWord: " + new String(guessedWord));
-        System.out.println("Attempts left: " + attempts);
-    }
-
-    // Method to get input and handle exceptions without crashing
-    private char getValidInput() {
-        while (true) {
-            System.out.print("Guess a letter: ");
-            try {
-                String input = scanner.nextLine().toUpperCase();
-                
-                // Check for empty input
-                if (input.isEmpty()) {
-                    throw new Exception("Input cannot be empty. Please enter a letter.");
-                }
-                
-                char guess = input.charAt(0); 
-                
-                // Check if the input is actually a letter
-                if (!Character.isLetter(guess)) {
-                    throw new Exception("Invalid input. Please enter letters only.");
-                }
-                
-                // Return the valid letter
-                return guess; 
-                
-            } catch (Exception e) {
-                // Catching any unexpected errors and prompting the user again
-                System.out.println("Error: " + e.getMessage());
-            }
-        }
-    }
-
-    // Method to check if the guessed letter is inside the secret word
-    private void processGuess(char guess) {
-        boolean found = false;
-        
-        // Go through the secret word to find matching letters
-        for (int i = 0; i < secretWord.length(); i++) {
-            if (secretWord.charAt(i) == guess) {
-                guessedWord[i] = guess; 
-                found = true;
-            }
-        }
-        
-        // Decrease attempts if the guess was wrong
-        if (!found) {
-            attempts--;
-            System.out.println("Incorrect guess!");
-        } else {
-            System.out.println("Good guess!");
-        }
-    }
-}</code></pre>
+            <div class="flex items-center space-x-3">
+                <button class="mobile-menu-btn text-white focus:outline-none focus:ring-2 focus:ring-white rounded p-1">
+                    <i class="fa-solid fa-bars text-xl"></i>
+                </button>
             </div>
         </div>
 
-        <!-- RUN VIEW -->
-        <div id="view-run" class="absolute inset-0 flex flex-col bg-black">
-            <!-- Terminal Output -->
-            <div id="terminal-output" class="flex-1 overflow-y-auto p-4 font-mono text-sm sm:text-base text-gray-300 leading-relaxed whitespace-pre-wrap break-words"></div>
-            
-            <!-- Terminal Input -->
-            <form id="input-form" class="bg-[#1e1e1e] border-t border-neutral-800 p-2 sm:p-3 flex gap-2 shrink-0">
-                <span class="text-green-500 font-mono py-2 hidden sm:inline">&gt;</span>
-                <input 
-                    type="text" 
-                    id="user-input" 
-                    autocomplete="off"
-                    autocorrect="off"
-                    autocapitalize="characters"
-                    spellcheck="false"
-                    class="flex-1 bg-neutral-900 border border-neutral-700 text-white rounded px-3 py-2 font-mono focus:outline-none focus:border-blue-500 transition-colors"
-                    placeholder="Type here..."
-                >
-                <button type="submit" id="submit-btn" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-medium transition-colors">
-                    Enter
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar hidden md:flex flex-col w-full md:w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 fixed md:sticky top-0 h-screen z-40 overflow-y-auto shadow-lg md:shadow-none">
+            <div class="p-6 border-b border-gray-100 dark:border-gray-700 hidden md:flex justify-between items-center">
+                <button onclick="goHome()" class="text-left focus:outline-none group">
+                    <h1 class="text-2xl font-bold text-blue-600 dark:text-blue-400 flex items-center group-hover:opacity-80 transition-opacity">
+                        <i class="fa-brands fa-linux mr-2 text-gray-800 dark:text-gray-200"></i>Zorin<span class="text-gray-800 dark:text-gray-200">OS</span>
+                    </h1>
                 </button>
-                <button type="button" id="restart-btn" onclick="startGame()" class="bg-emerald-700 hover:bg-emerald-600 text-white px-3 py-2 rounded transition-colors hidden" title="Restart Game">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+            </div>
+            <nav class="flex-1 p-4 space-y-2">
+                <button onclick="goHome()" class="w-full text-left px-4 py-2.5 rounded-lg text-white bg-gray-800 dark:bg-gray-700 hover:bg-gray-700 dark:hover:bg-gray-600 font-medium transition-colors mb-4 shadow-sm flex items-center"><i class="fa-solid fa-arrow-left w-6"></i> Back to Hub</button>
+                <a href="#zorin-intro" class="nav-link zorin-nav block px-4 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-700 dark:hover:text-blue-400 font-medium transition-colors"><i class="fa-solid fa-house w-6"></i> Introduction</a>
+                <a href="#zorin-install" class="nav-link zorin-nav block px-4 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-700 dark:hover:text-blue-400 font-medium transition-colors"><i class="fa-solid fa-download w-6"></i> 1. Install Guide</a>
+                <a href="#zorin-post" class="nav-link zorin-nav block px-4 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-700 dark:hover:text-blue-400 font-medium transition-colors"><i class="fa-solid fa-list-check w-6"></i> 2. Post-Install</a>
+                <a href="#zorin-tools" class="nav-link zorin-nav block px-4 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-700 dark:hover:text-blue-400 font-medium transition-colors"><i class="fa-solid fa-file-zipper w-6"></i> 3. Archive Tools</a>
+                <a href="#zorin-veteran" class="nav-link zorin-nav block px-4 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-700 dark:hover:text-blue-400 font-medium transition-colors"><i class="fa-solid fa-lightbulb w-6"></i> 4. Veteran Secrets</a>
+                <a href="#zorin-perf" class="nav-link zorin-nav block px-4 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-blue-700 dark:hover:text-blue-400 font-medium transition-colors"><i class="fa-solid fa-gauge-high w-6"></i> 5. Performance Tweaks</a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-6 md:p-10 lg:p-14 max-w-5xl mx-auto w-full">
+            <div class="prose max-w-none">
+                
+                <section id="zorin-intro" class="mb-16 pt-4 guide-section">
+                    <div class="bg-gradient-to-r from-blue-600 to-indigo-700 dark:from-blue-800 dark:to-indigo-900 rounded-3xl p-8 md:p-10 text-white shadow-xl mb-8">
+                        <div class="flex items-center space-x-4 mb-4">
+                            <i class="fa-brands fa-linux text-4xl md:text-5xl opacity-80"></i>
+                            <h1 class="text-3xl md:text-5xl font-extrabold leading-tight m-0 text-white">Master Zorin OS</h1>
+                        </div>
+                        <p class="text-blue-100 dark:text-blue-50 text-lg md:text-xl font-medium max-w-2xl">The ultimate future-proof guide to installing, configuring, and optimizing Zorin OS for any PC or laptop.</p>
+                    </div>
+                    <p class="text-lg text-gray-700 dark:text-gray-300">Welcome to the complete guide for setting up Zorin OS. Whether you're moving away from Windows or upgrading, this guide covers everything from writing the ISO to applying post-install tweaks for maximum performance.</p>
+                </section>
+
+                <section id="zorin-install" class="mb-16 scroll-mt-24 guide-section">
+                    <h2 class="flex items-center text-2xl md:text-3xl border-b border-gray-200 dark:border-gray-700 pb-3 text-gray-900 dark:text-white"><i class="fa-solid fa-download text-blue-500 mr-3"></i> 1. How to Install Zorin OS</h2>
+                    <p class="text-gray-600 dark:text-gray-300">The installation process is highly user-friendly. Follow these steps to ensure a clean, reliable installation on any system.</p>
+                    
+                    <div class="space-y-6 mt-8">
+                        <div class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="mt-0 flex items-center text-gray-900 dark:text-white"><span class="step-number bg-blue-600 dark:bg-blue-500 text-white">1</span> Download & Flash</h3>
+                            <p class="text-gray-600 dark:text-gray-300">Go to the <a href="https://zorin.com/os/download/" target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline">Zorin OS Download page</a>. Download the Core (free) version. Flash it to a USB (8GB+) using <a href="https://balena.io/etcher" target="_blank" class="text-blue-600 dark:text-blue-400 hover:underline">balenaEtcher</a> or Rufus.</p>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="mt-0 flex items-center text-gray-900 dark:text-white"><span class="step-number bg-blue-600 dark:bg-blue-500 text-white">2</span> Boot & Install</h3>
+                            <p class="text-gray-600 dark:text-gray-300">Restart and tap your Boot Menu key (F12, F8, F2). Select the USB. Choose "Try or Install Zorin OS". Once loaded, click the "Install" icon, connect to Wi-Fi, and check "Install third-party software for graphics".</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="zorin-post" class="mb-16 scroll-mt-24 guide-section">
+                    <h2 class="flex items-center text-2xl md:text-3xl border-b border-gray-200 dark:border-gray-700 pb-3 text-gray-900 dark:text-white"><i class="fa-solid fa-list-check text-green-500 mr-3"></i> 2. Essential Post-Install Setup</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-8">
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h4 class="font-bold text-lg mb-2 text-gray-900 dark:text-white">1. Update the System</h4>
+                            <div class="code-block bg-gray-900 dark:bg-black text-gray-100 m-0">
+                                <button class="copy-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i></button>
+                                <code>sudo apt update && sudo apt upgrade -y</code>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h4 class="font-bold text-lg mb-2 text-gray-900 dark:text-white">2. Essential Drivers</h4>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 m-0">Open the menu, search <strong>Additional Drivers</strong>. Select proprietary NVIDIA/AMD drivers and click Apply.</p>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h4 class="font-bold text-lg mb-2 text-gray-900 dark:text-white">3. Enable Firewall</h4>
+                            <div class="code-block bg-gray-900 dark:bg-black text-gray-100 m-0">
+                                <button class="copy-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i></button>
+                                <code>sudo ufw enable</code>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h4 class="font-bold text-lg mb-2 text-gray-900 dark:text-white">4. Media Codecs</h4>
+                            <div class="code-block bg-gray-900 dark:bg-black text-gray-100 m-0">
+                                <button class="copy-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i></button>
+                                <code>sudo apt install ubuntu-restricted-extras -y</code>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="zorin-tools" class="mb-16 scroll-mt-24 guide-section">
+                    <h2 class="flex items-center text-2xl md:text-3xl border-b border-gray-200 dark:border-gray-700 pb-3 text-gray-900 dark:text-white"><i class="fa-solid fa-file-zipper text-purple-500 mr-3"></i> 3. Install Archive Managers</h2>
+                    <p class="text-gray-600 dark:text-gray-300">Install core backends for encrypted archives, and a powerful GUI.</p>
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
+                        <h3 class="mt-0 text-xl text-gray-800 dark:text-white">1. Backend & PeaZip GUI</h3>
+                        <div class="code-block bg-gray-900 dark:bg-black text-gray-100">
+                            <button class="copy-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i></button>
+                            <code>sudo apt install p7zip-full p7zip-rar -y</code>
+                        </div>
+                        <div class="code-block bg-gray-900 dark:bg-black text-gray-100 m-0">
+                            <button class="copy-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i></button>
+                            <code>flatpak install flathub io.github.peazip.PeaZip -y</code>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="zorin-veteran" class="mb-16 scroll-mt-24 guide-section">
+                    <h2 class="flex items-center text-2xl md:text-3xl border-b border-gray-200 dark:border-gray-700 pb-3 text-gray-900 dark:text-white"><i class="fa-solid fa-lightbulb text-yellow-500 mr-3"></i> 4. What Veterans Wish They Knew</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                        <div class="bg-gradient-to-br from-gray-800 to-gray-900 p-6 rounded-2xl border border-gray-700 text-white">
+                            <h3 class="mt-0 text-xl font-bold mb-2 text-white">The "Ubuntu Base" Secret</h3>
+                            <p class="text-gray-300 text-sm mb-0">Zorin OS is built on Ubuntu LTS. If you have an issue, search for "Ubuntu [issue]" instead of Zorin. The solutions will work perfectly.</p>
+                        </div>
+                        <div class="bg-gradient-to-br from-gray-800 to-gray-900 p-6 rounded-2xl border border-gray-700 text-white">
+                            <h3 class="mt-0 text-xl font-bold mb-2 text-white">Flatpaks > PPAs</h3>
+                            <p class="text-gray-300 text-sm mb-0">Avoid adding custom "PPAs" for software. Always prefer installing apps via Flatpak from the Software store to keep your system stable.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="zorin-perf" class="mb-16 scroll-mt-24 guide-section">
+                    <h2 class="flex items-center text-2xl md:text-3xl border-b border-gray-200 dark:border-gray-700 pb-3 text-gray-900 dark:text-white"><i class="fa-solid fa-gauge-high text-orange-500 mr-3"></i> 5. Performance Tweaks</h2>
+                    <div class="bg-orange-50 dark:bg-orange-900/20 border-l-4 border-orange-500 p-5 mb-6 rounded-r-lg mt-8">
+                        <h3 class="mt-0 text-orange-800 dark:text-orange-300 text-lg font-bold">Important Disclaimer</h3>
+                        <p class="text-orange-700 dark:text-orange-200 text-sm m-0">These tweaks are optional and meant for specific hardware scenarios. Read carefully before applying.</p>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+                            <div class="inline-block bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200 text-xs font-bold px-3 py-1 rounded-full mb-3">Best for older HDDs</div>
+                            <h3 class="mt-0 text-xl text-gray-900 dark:text-white font-bold">1. Install Preload</h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Caches apps in unused RAM. <strong>Do not use on fast NVMe SSDs.</strong></p>
+                            <div class="code-block bg-gray-900 dark:bg-black text-gray-100 m-0">
+                                <button class="copy-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i></button>
+                                <code>sudo apt install preload -y</code>
+                            </div>
+                        </div>
+
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+                            <div class="inline-block bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200 text-xs font-bold px-3 py-1 rounded-full mb-3">Best for Low RAM (≤4GB)</div>
+                            <h3 class="mt-0 text-xl text-gray-900 dark:text-white font-bold">2. Enable zRAM</h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Compresses data in RAM instead of writing to slow disk swap.</p>
+                            <div class="code-block bg-gray-900 dark:bg-black text-gray-100 m-0">
+                                <button class="copy-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i></button>
+                                <code>sudo apt install zram-tools -y</code>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+
+    <!-- ========================================== -->
+    <!--           LINUX MINT OS GUIDE              -->
+    <!-- ========================================== -->
+    <div id="mint-view" class="app-view flex-col md:flex-row w-full">
+        <!-- Mobile Header -->
+        <div class="md:hidden bg-green-700 dark:bg-gray-800 text-white p-4 flex justify-between items-center sticky top-0 z-50 shadow-md">
+            <div class="flex items-center">
+                <button onclick="goHome()" class="text-white focus:outline-none hover:text-green-200 mr-4 transition-colors p-1" title="Back to Selection">
+                    <i class="fa-solid fa-arrow-left text-xl"></i>
                 </button>
-            </form>
+                <h1 class="font-bold text-lg"><i class="fa-brands fa-linux mr-2"></i>Mint Guide</h1>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button class="mobile-menu-btn text-white focus:outline-none focus:ring-2 focus:ring-white rounded p-1">
+                    <i class="fa-solid fa-bars text-xl"></i>
+                </button>
+            </div>
         </div>
 
-    </main>
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar hidden md:flex flex-col w-full md:w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 fixed md:sticky top-0 h-screen z-40 overflow-y-auto shadow-lg md:shadow-none">
+            <div class="p-6 border-b border-gray-100 dark:border-gray-700 hidden md:flex justify-between items-center">
+                <button onclick="goHome()" class="text-left focus:outline-none group">
+                    <h1 class="text-2xl font-bold text-green-700 dark:text-green-500 flex items-center group-hover:opacity-80 transition-opacity">
+                        <i class="fa-brands fa-linux mr-2 text-gray-800 dark:text-gray-200"></i>Linux<span class="text-gray-800 dark:text-gray-200">Mint</span>
+                    </h1>
+                </button>
+            </div>
+            <nav class="flex-1 p-4 space-y-2">
+                <button onclick="goHome()" class="w-full text-left px-4 py-2.5 rounded-lg text-white bg-gray-800 dark:bg-gray-700 hover:bg-gray-700 dark:hover:bg-gray-600 font-medium transition-colors mb-4 shadow-sm flex items-center"><i class="fa-solid fa-arrow-left w-6"></i> Back to Hub</button>
+                <a href="#mint-intro" class="nav-link mint-nav block px-4 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-gray-700 hover:text-green-700 dark:hover:text-green-400 font-medium transition-colors"><i class="fa-solid fa-house w-6"></i> Introduction</a>
+                <a href="#mint-install" class="nav-link mint-nav block px-4 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-gray-700 hover:text-green-700 dark:hover:text-green-400 font-medium transition-colors"><i class="fa-solid fa-download w-6"></i> 1. Install Guide</a>
+                <a href="#mint-post" class="nav-link mint-nav block px-4 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-gray-700 hover:text-green-700 dark:hover:text-green-400 font-medium transition-colors"><i class="fa-solid fa-list-check w-6"></i> 2. Post-Install</a>
+                <a href="#mint-tools" class="nav-link mint-nav block px-4 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-gray-700 hover:text-green-700 dark:hover:text-green-400 font-medium transition-colors"><i class="fa-solid fa-file-zipper w-6"></i> 3. Archive Tools</a>
+                <a href="#mint-veteran" class="nav-link mint-nav block px-4 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-gray-700 hover:text-green-700 dark:hover:text-green-400 font-medium transition-colors"><i class="fa-solid fa-lightbulb w-6"></i> 4. Veteran Secrets</a>
+                <a href="#mint-perf" class="nav-link mint-nav block px-4 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-green-50 dark:hover:bg-gray-700 hover:text-green-700 dark:hover:text-green-400 font-medium transition-colors"><i class="fa-solid fa-gauge-high w-6"></i> 5. Performance Tweaks</a>
+            </nav>
+        </aside>
 
+        <!-- Main Content -->
+        <main class="flex-1 p-6 md:p-10 lg:p-14 max-w-5xl mx-auto w-full">
+            <div class="prose max-w-none">
+                
+                <section id="mint-intro" class="mb-16 pt-4 guide-section">
+                    <div class="bg-gradient-to-r from-green-600 to-emerald-700 dark:from-green-800 dark:to-emerald-900 rounded-3xl p-8 md:p-10 text-white shadow-xl mb-8">
+                        <div class="flex items-center space-x-4 mb-4">
+                            <i class="fa-brands fa-linux text-4xl md:text-5xl opacity-80"></i>
+                            <h1 class="text-3xl md:text-5xl font-extrabold leading-tight m-0 text-white">Master Linux Mint</h1>
+                        </div>
+                        <p class="text-green-100 dark:text-green-50 text-lg md:text-xl font-medium max-w-2xl">The comprehensive guide to installing, configuring, and unleashing the power of Linux Mint Cinnamon.</p>
+                    </div>
+                    <p class="text-lg text-gray-700 dark:text-gray-300">Welcome to the complete guide for Linux Mint. Renowned for its rock-solid stability, refusal to force Snaps on users, and the highly customizable Cinnamon desktop environment.</p>
+                </section>
+
+                <section id="mint-install" class="mb-16 scroll-mt-24 guide-section">
+                    <h2 class="flex items-center text-2xl md:text-3xl border-b border-gray-200 dark:border-gray-700 pb-3 text-gray-900 dark:text-white"><i class="fa-solid fa-download text-green-600 mr-3"></i> 1. How to Install Linux Mint</h2>
+                    
+                    <div class="space-y-6 mt-8">
+                        <div class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="mt-0 flex items-center text-gray-900 dark:text-white"><span class="step-number bg-green-600 dark:bg-green-500 text-white">1</span> Download Cinnamon Edition</h3>
+                            <p class="text-gray-600 dark:text-gray-300">Go to the <a href="https://linuxmint.com/download.php" target="_blank" class="text-green-600 dark:text-green-400 hover:underline">Linux Mint Download page</a>. Select the "Cinnamon Edition" as it provides the most modern, complete experience. Flash it to a USB drive using balenaEtcher.</p>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="mt-0 flex items-center text-gray-900 dark:text-white"><span class="step-number bg-green-600 dark:bg-green-500 text-white">2</span> Boot & Install</h3>
+                            <p class="text-gray-600 dark:text-gray-300">Boot from your USB. Once the Mint desktop loads, double-click "Install Linux Mint". Crucially, when prompted, tick the box that says <strong>"Install multimedia codecs"</strong> to ensure videos and music play perfectly out of the box.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="mint-post" class="mb-16 scroll-mt-24 guide-section">
+                    <h2 class="flex items-center text-2xl md:text-3xl border-b border-gray-200 dark:border-gray-700 pb-3 text-gray-900 dark:text-white"><i class="fa-solid fa-list-check text-green-600 mr-3"></i> 2. Essential Post-Install Setup</h2>
+                    <p class="text-gray-600 dark:text-gray-300">Linux Mint has exceptional GUI tools. While you can use the terminal, Mint encourages using its built-in managers.</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-8">
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 border-t-4 border-t-green-500">
+                            <h4 class="font-bold text-lg mb-2 text-gray-900 dark:text-white">1. Update Manager</h4>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 m-0">Look for the shield icon in your bottom-right system tray. Click it, apply the update to the manager itself if prompted, and then install all available system updates.</p>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 border-t-4 border-t-green-500">
+                            <h4 class="font-bold text-lg mb-2 text-gray-900 dark:text-white">2. Timeshift (Backups)</h4>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 m-0">Unlike other distros, Mint comes with Timeshift pre-installed. Open it from the menu, select RSYNC, and set up daily automated snapshots. <strong>Do this before changing drivers!</strong></p>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h4 class="font-bold text-lg mb-2 text-gray-900 dark:text-white">3. Driver Manager</h4>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 m-0">Open the Mint Menu and search for "Driver Manager". It will automatically find and let you install the required NVIDIA proprietary drivers or Wi-Fi firmware.</p>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h4 class="font-bold text-lg mb-2 text-gray-900 dark:text-white">4. Redshift (Night Light)</h4>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 m-0">Mint uses an applet called "Redshift" for blue-light filtering. Search for it in the menu, open it, and it will sit in your tray, protecting your eyes at night.</p>
+                        </div>
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 col-span-1 md:col-span-2">
+                            <h4 class="font-bold text-lg mb-2 text-gray-900 dark:text-white">5. Backup Codecs Command</h4>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">If you forgot to tick the codecs box during installation, you must run this custom Mint command:</p>
+                            <div class="code-block bg-gray-900 dark:bg-black text-gray-100 m-0">
+                                <button class="copy-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i></button>
+                                <code>sudo apt install mint-meta-codecs -y</code>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="mint-tools" class="mb-16 scroll-mt-24 guide-section">
+                    <h2 class="flex items-center text-2xl md:text-3xl border-b border-gray-200 dark:border-gray-700 pb-3 text-gray-900 dark:text-white"><i class="fa-solid fa-file-zipper text-green-600 mr-3"></i> 3. Archive Tools</h2>
+                    <p class="text-gray-600 dark:text-gray-300">Mint's default archive manager is quite good, but for deep compatibility, add the 7zip backends and PeaZip.</p>
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 mb-6">
+                        <div class="code-block bg-gray-900 dark:bg-black text-gray-100">
+                            <button class="copy-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i></button>
+                            <code>sudo apt install p7zip-full p7zip-rar -y</code>
+                        </div>
+                        <div class="code-block bg-gray-900 dark:bg-black text-gray-100 m-0">
+                            <button class="copy-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i></button>
+                            <code>flatpak install flathub io.github.peazip.PeaZip -y</code>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="mint-veteran" class="mb-16 scroll-mt-24 guide-section">
+                    <h2 class="flex items-center text-2xl md:text-3xl border-b border-gray-200 dark:border-gray-700 pb-3 text-gray-900 dark:text-white"><i class="fa-solid fa-lightbulb text-yellow-500 mr-3"></i> 4. What Veterans Wish They Knew</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                        <div class="bg-gradient-to-br from-green-800 to-green-900 p-6 rounded-2xl border border-gray-700 text-white shadow-lg">
+                            <h3 class="mt-0 text-xl font-bold mb-2 text-white"><i class="fa-solid fa-ban mr-2 text-red-400"></i>The Anti-Snap Philosophy</h3>
+                            <p class="text-gray-300 text-sm mb-0">Unlike Ubuntu, Linux Mint actively blocks the installation of "Snaps" (a type of software package) because they are proprietary to Canonical. Mint fully embraces <strong>Flatpak</strong> instead. Always use the "Software Manager" to find Flatpak versions of your apps.</p>
+                        </div>
+                        <div class="bg-gradient-to-br from-gray-800 to-gray-900 p-6 rounded-2xl border border-gray-700 text-white">
+                            <h3 class="mt-0 text-xl font-bold mb-2 text-white">Cinnamon Spices</h3>
+                            <p class="text-gray-300 text-sm mb-0">You don't need browser extensions to customize Mint. Open settings and look for <strong>Applets</strong> (taskbar items), <strong>Desklets</strong> (desktop widgets), and <strong>Extensions</strong>. You can download hundreds of community-made tools directly from within these settings panels.</p>
+                        </div>
+                        <div class="bg-gradient-to-br from-gray-800 to-gray-900 p-6 rounded-2xl border border-gray-700 text-white md:col-span-2">
+                            <h3 class="mt-0 text-xl font-bold mb-2 text-white">Nemo File Manager Superpowers</h3>
+                            <p class="text-gray-300 text-sm mb-0">Mint uses "Nemo" as its file manager. Open Nemo, go to Edit > Preferences > Behavior, and enable "Open in Terminal". Also, check out <strong>Nemo Actions</strong> in your software manager to add root-access options and advanced right-click context menus directly to your file browser.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="mint-perf" class="mb-16 scroll-mt-24 guide-section">
+                    <h2 class="flex items-center text-2xl md:text-3xl border-b border-gray-200 dark:border-gray-700 pb-3 text-gray-900 dark:text-white"><i class="fa-solid fa-gauge-high text-orange-500 mr-3"></i> 5. Performance Tweaks</h2>
+                    <div class="bg-orange-50 dark:bg-orange-900/20 border-l-4 border-orange-500 p-5 mb-6 rounded-r-lg mt-8">
+                        <h3 class="mt-0 text-orange-800 dark:text-orange-300 text-lg font-bold">Important Disclaimer</h3>
+                        <p class="text-orange-700 dark:text-orange-200 text-sm m-0">Linux Mint is extremely light and stable by default. Only apply these if you are on very old hardware or specifically need battery improvements.</p>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+                            <div class="inline-block bg-teal-100 dark:bg-teal-900/50 text-teal-800 dark:text-teal-200 text-xs font-bold px-3 py-1 rounded-full mb-3">Best for Laptops (Battery/Heat)</div>
+                            <h3 class="mt-0 text-xl text-gray-900 dark:text-white font-bold">1. Auto-CPUFreq</h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Mint uses older power profiles sometimes. This tool perfectly manages fan speed and CPU throttling.</p>
+                            <div class="code-block bg-gray-900 dark:bg-black text-gray-100 m-0">
+                                <button class="copy-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i></button>
+                                <code>sudo snap install auto-cpufreq</code>
+                            </div>
+                            <p class="text-xs text-red-500 dark:text-red-400 mt-2 font-medium"><i class="fa-solid fa-triangle-exclamation"></i> Wait! Mint blocks snaps. To use this specific tool on Mint, you must unblock snaps first: <code>sudo rm /etc/apt/preferences.d/nosnap.pref</code> then <code>sudo apt install snapd</code>.</p>
+                        </div>
+
+                        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+                            <div class="inline-block bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200 text-xs font-bold px-3 py-1 rounded-full mb-3">Best for Low RAM (≤4GB)</div>
+                            <h3 class="mt-0 text-xl text-gray-900 dark:text-white font-bold">2. Enable zRAM</h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Compresses data in RAM. Crucial for keeping Mint snappy on old dual-core laptops.</p>
+                            <div class="code-block bg-gray-900 dark:bg-black text-gray-100 m-0">
+                                <button class="copy-btn" onclick="copyCode(this)"><i class="fa-regular fa-copy"></i></button>
+                                <code>sudo apt install zram-tools -y</code>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Interactive Scripts -->
     <script>
-        // Tab Navigation Logic
-        function switchTab(tabId) {
-            const btnCode = document.getElementById('tab-code');
-            const btnRun = document.getElementById('tab-run');
-            const viewCode = document.getElementById('view-code');
-            const viewRun = document.getElementById('view-run');
-            const inputField = document.getElementById('user-input');
+        // View Management Logic
+        const landingView = document.getElementById('landing-view');
+        const zorinView = document.getElementById('zorin-view');
+        const mintView = document.getElementById('mint-view');
 
-            if (tabId === 'code') {
-                btnCode.className = "flex-1 py-3 sm:py-4 flex items-center justify-center gap-2 font-medium transition-colors tab-active text-sm sm:text-base";
-                btnRun.className = "flex-1 py-3 sm:py-4 flex items-center justify-center gap-2 font-medium transition-colors tab-inactive text-sm sm:text-base";
-                viewCode.classList.remove('hidden');
-                viewCode.classList.add('flex');
-                viewRun.classList.add('hidden');
-                viewRun.classList.remove('flex');
-            } else {
-                btnRun.className = "flex-1 py-3 sm:py-4 flex items-center justify-center gap-2 font-medium transition-colors tab-active text-sm sm:text-base text-green-400";
-                btnRun.style.borderBottomColor = "#4ade80";
-                btnCode.className = "flex-1 py-3 sm:py-4 flex items-center justify-center gap-2 font-medium transition-colors tab-inactive text-sm sm:text-base";
-                viewRun.classList.remove('hidden');
-                viewRun.classList.add('flex');
-                viewCode.classList.add('hidden');
-                viewCode.classList.remove('flex');
-                
-                // Focus input when returning to game
-                if (gameState === 'PLAYING') {
-                    inputField.focus();
+        function openGuide(guideId) {
+            // Hide all views
+            document.querySelectorAll('.app-view').forEach(el => el.classList.remove('active'));
+            
+            // Show requested view
+            const view = document.getElementById(guideId);
+            view.classList.add('active');
+            
+            // Scroll to top
+            window.scrollTo(0, 0);
+
+            // Re-initialize intersection observer for the new view
+            initIntersectionObserver(guideId);
+        }
+
+        function goHome() {
+            document.querySelectorAll('.app-view').forEach(el => el.classList.remove('active'));
+            landingView.classList.add('active');
+            window.scrollTo(0, 0);
+        }
+
+        // Dark Mode Functionality
+        const themeToggles = document.querySelectorAll('.theme-toggle-btn');
+        const htmlElement = document.documentElement;
+
+        function updateThemeIcon() {
+            const isDark = htmlElement.classList.contains('dark');
+            themeToggles.forEach(btn => {
+                btn.innerHTML = isDark 
+                    ? '<i class="fa-solid fa-sun text-lg"></i>' 
+                    : '<i class="fa-solid fa-moon text-lg"></i>';
+            });
+        }
+
+        // Initialize theme based on preference
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            htmlElement.classList.add('dark');
+        } else {
+            htmlElement.classList.remove('dark');
+        }
+        updateThemeIcon();
+
+        // Toggle event
+        themeToggles.forEach(btn => {
+            btn.addEventListener('click', () => {
+                htmlElement.classList.toggle('dark');
+                if (htmlElement.classList.contains('dark')) {
+                    localStorage.theme = 'dark';
+                } else {
+                    localStorage.theme = 'light';
                 }
-            }
-        }
-
-        // --- JAVA EMULATOR LOGIC ---
-
-        const wordList = ["DEFORESTATION", "CLIMATE CHANGE", "OVERFISHING", "ANIMAL RIGHTS", "WATER POLLUTION"];
-        
-        // Game State
-        let gameState = 'IDLE'; 
-        let secretWord = '';
-        let guessedWord = [];
-        let attempts = 0;
-
-        const terminalOutput = document.getElementById('terminal-output');
-        const inputForm = document.getElementById('input-form');
-        const userInput = document.getElementById('user-input');
-        const submitBtn = document.getElementById('submit-btn');
-        const restartBtn = document.getElementById('restart-btn');
-
-        // Helper to print text to the simulated console
-        function printLine(text) {
-            const line = document.createElement('div');
-            line.textContent = text;
-            terminalOutput.appendChild(line);
-            scrollToBottom();
-        }
-
-        // Helper to append to the last line (for the scanner input)
-        function appendToLastLine(text) {
-            if (terminalOutput.lastChild) {
-                terminalOutput.lastChild.textContent += text;
-            } else {
-                printLine(text);
-            }
-        }
-
-        function scrollToBottom() {
-            terminalOutput.scrollTop = terminalOutput.scrollHeight;
-        }
-
-        function clearTerminal() {
-            terminalOutput.innerHTML = '';
-        }
-
-        function startGame() {
-            clearTerminal();
-            
-            // Randomly select word
-            secretWord = wordList[Math.floor(Math.random() * wordList.length)];
-            
-            // Fill with underscores, but keep spaces visible
-            guessedWord = secretWord.split('').map(char => char === ' ' ? ' ' : '_');
-            
-            attempts = 5;
-            gameState = 'PLAYING';
-            
-            // UI Adjustments
-            userInput.disabled = false;
-            submitBtn.classList.remove('hidden');
-            restartBtn.classList.add('hidden');
-            userInput.placeholder = "Type here...";
-
-            // Initial Java output
-            printLine("Welcome to Eco-Hangman!");
-            displayStatus();
-            printLine("Guess a letter: ");
-            
-            userInput.focus();
-        }
-
-        function displayStatus() {
-            printLine("");
-            printLine(`Word: ${guessedWord.join('')}`);
-            printLine(`Attempts left: ${attempts}`);
-        }
-
-        inputForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            if (gameState !== 'PLAYING') return;
-
-            const rawInput = userInput.value;
-            const inputUpper = rawInput.toUpperCase();
-            userInput.value = '';
-
-            // Echo input onto the waiting line
-            appendToLastLine(rawInput);
-
-            // Java logic: Check for empty input
-            if (inputUpper.length === 0) {
-                printLine("Error: Input cannot be empty. Please enter a letter.");
-                printLine("Guess a letter: ");
-                scrollToBottom();
-                return;
-            }
-
-            const guess = inputUpper.charAt(0);
-
-            // Java logic: Check if input is a letter
-            if (!/^[A-Z]$/.test(guess)) {
-                printLine("Error: Invalid input. Please enter letters only.");
-                printLine("Guess a letter: ");
-                scrollToBottom();
-                return;
-            }
-
-            // Process Guess
-            let found = false;
-            for (let i = 0; i < secretWord.length; i++) {
-                if (secretWord.charAt(i) === guess) {
-                    guessedWord[i] = guess;
-                    found = true;
-                }
-            }
-
-            if (!found) {
-                attempts--;
-                printLine("Incorrect guess!");
-            } else {
-                printLine("Good guess!");
-            }
-
-            // Check Win/Loss
-            if (!guessedWord.includes('_')) {
-                printLine("\nCongrats! You guessed the word: " + secretWord);
-                endGame();
-            } else if (attempts === 0) {
-                printLine("\nGame Over! The word was: " + secretWord);
-                endGame();
-            } else {
-                // Continue loop
-                displayStatus();
-                printLine("Guess a letter: ");
-                scrollToBottom();
-            }
+                updateThemeIcon();
+            });
         });
 
-        function endGame() {
-            gameState = 'GAME_OVER';
-            userInput.disabled = true;
-            userInput.placeholder = "Game Over. Press Restart.";
-            submitBtn.classList.add('hidden');
-            restartBtn.classList.remove('hidden');
-            scrollToBottom();
+        // Copy Code to Clipboard Functionality
+        function copyCode(btn) {
+            const codeContainer = btn.nextElementSibling;
+            let codeText = codeContainer.innerText;
+            
+            const textArea = document.createElement("textarea");
+            textArea.value = codeText;
+            document.body.appendChild(textArea);
+            textArea.select();
+            
+            try {
+                document.execCommand('copy');
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-check text-green-400"></i>';
+                btn.classList.add('bg-gray-700');
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.classList.remove('bg-gray-700');
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy', err);
+            }
+            
+            document.body.removeChild(textArea);
         }
 
-        // Start game automatically on load
-        window.onload = function() {
-            switchTab('run'); // Default to run view
-            startGame();
-        };
+        // Mobile Sidebar Toggle Logic
+        const mobileMenuBtns = document.querySelectorAll('.mobile-menu-btn');
+        
+        mobileMenuBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                // Find the parent view (Zorin or Mint) to scope the sidebar toggle
+                const viewContainer = e.target.closest('.app-view');
+                const sidebar = viewContainer.querySelector('.sidebar');
+                
+                sidebar.classList.toggle('hidden');
+                if (!sidebar.classList.contains('hidden')) {
+                    sidebar.classList.add('fixed', 'inset-0', 'bg-white', 'dark:bg-gray-900', 'z-40');
+                    sidebar.classList.remove('md:flex', 'md:w-72');
+                } else {
+                    sidebar.classList.remove('fixed', 'inset-0', 'bg-white', 'dark:bg-gray-900', 'z-40');
+                    sidebar.classList.add('md:flex', 'md:w-72');
+                }
+            });
+        });
 
+        // Close sidebar on link click (mobile)
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                if (window.innerWidth < 768) {
+                    const viewContainer = e.target.closest('.app-view');
+                    const sidebar = viewContainer.querySelector('.sidebar');
+                    sidebar.classList.add('hidden');
+                    sidebar.classList.remove('fixed', 'inset-0', 'bg-white', 'dark:bg-gray-900', 'z-40');
+                    sidebar.classList.add('md:flex', 'md:w-72');
+                }
+            });
+        });
+
+        // Intersection Observer logic scoped by view
+        function initIntersectionObserver(viewId) {
+            const viewContainer = document.getElementById(viewId);
+            const sections = viewContainer.querySelectorAll("section.guide-section");
+            const navLinks = viewContainer.querySelectorAll(".nav-link");
+            
+            // Determine active color classes based on view
+            const activeBg = viewId === 'zorin-view' ? 'bg-blue-50' : 'bg-green-50';
+            const activeDarkBg = viewId === 'zorin-view' ? 'dark:bg-gray-700' : 'dark:bg-gray-700';
+            const activeText = viewId === 'zorin-view' ? 'text-blue-700' : 'text-green-700';
+            const activeDarkText = viewId === 'zorin-view' ? 'dark:text-blue-400' : 'dark:text-green-400';
+            
+            const observerOptions = {
+                root: null,
+                rootMargin: '0px',
+                threshold: 0.15 
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const id = entry.target.getAttribute('id');
+                        navLinks.forEach(link => {
+                            // Reset styles
+                            link.classList.remove(activeBg, activeDarkBg, activeText, activeDarkText, 'font-bold');
+                            link.classList.add('text-gray-700', 'dark:text-gray-300', 'font-medium');
+                            
+                            // Apply active style
+                            if (link.getAttribute('href') === `#${id}`) {
+                                link.classList.remove('text-gray-700', 'dark:text-gray-300', 'font-medium');
+                                link.classList.add(activeBg, activeDarkBg, activeText, activeDarkText, 'font-bold');
+                            }
+                        });
+                    }
+                });
+            }, observerOptions);
+
+            sections.forEach(section => observer.observe(section));
+        }
     </script>
-    <!-- PrismJS library for Syntax Highlighting -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
 </body>
 </html>
